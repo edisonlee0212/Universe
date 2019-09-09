@@ -3,8 +3,9 @@
 [Oo]bj/
 [Bb]uild/
 [Bb]uilds/
-Assets/AssetStoreTools*
-
+Universe/Assets/AssetStoreTools*
+Universe/Assets/OmniSARTechnologies*
+Universe/Assets/SphereGenerator*
 # Visual Studio cache directory
 .vs/
 
