@@ -80,6 +80,9 @@ namespace Universe
             _InputSystem.StarCluster.BoxSelectionStart.performed += ctx => SelectionSystem.OnBoxSelectEnter(ctx);
             _InputSystem.StarCluster.BoxSelectionRelease.performed += ctx => SelectionSystem.OnBoxSelectRelease(ctx);
             _InputSystem.StarCluster.ToPlanetarySystem.performed += ctx => CentralSystem.StarClusterModeToPlanetarySystemMode(ctx);
+            _InputSystem.StarCluster.CameraRotateStart.performed += ctx => CentralSystem.OnStarClusterRotateCameraStart(ctx);
+            _InputSystem.StarCluster.CameraRotateRelease.performed += ctx => CentralSystem.OnStarClusterRotateCameraRelease(ctx);
+            _InputSystem.StarCluster.FollowStar.performed += ctx => SelectionSystem.OnRaySelectEnter(ctx);
             //Planetary System
             _InputSystem.PlanetarySystem.Cancel.performed += ctx => CentralSystem.OnPlanetarySystemCancel(ctx);
 
@@ -88,6 +91,7 @@ namespace Universe
         #endregion
     }
 
+    
     [UpdateInGroup(typeof(InitializationSystemGroup))]
     public class CentralSystem : JobComponentSystem
     {
@@ -100,7 +104,8 @@ namespace Universe
         #region Subsystems
         #region Non-ECS
         private static ControlSystem m_ControlSystem;
-        public static ControlSystem ControlSystem { get => m_ControlSystem; set => m_ControlSystem = value; }
+        private static CameraModule m_CameraModule;
+        
         #endregion
         #region ECS
         private static WorldSystem m_WorldSystem;
@@ -109,12 +114,7 @@ namespace Universe
         private static StarDisplayColorSystem m_StarDisplayColorSystem;
         private static MeshRenderSystem m_RenderSystem;
         private static CopyStarColorSystem m_CopyStarColorSystem;
-        public static WorldSystem WorldSystem { get => m_WorldSystem; set => m_WorldSystem = value; }
-        public static StarTransformSystem StarTransformSystem { get => m_StarTransformSystem; set => m_StarTransformSystem = value; }
-        public static SelectionSystem SelectionSystem { get => m_SelectionSystem; set => m_SelectionSystem = value; }
-        public static MeshRenderSystem RenderSystem { get => m_RenderSystem; set => m_RenderSystem = value; }
-        public static CopyStarColorSystem CopyStarColorSystem { get => m_CopyStarColorSystem; set => m_CopyStarColorSystem = value; }
-        public static StarDisplayColorSystem StarDisplayColorSystem { get => m_StarDisplayColorSystem; set => m_StarDisplayColorSystem = value; }
+        
         #endregion
         #endregion
 
@@ -134,20 +134,31 @@ namespace Universe
             public Material TargetMaterial;
         }
         private static SwitchingModeInfo _SwitchingModeInfo;
-        private static bool _IsSwitching;
+        private static bool _IsSwitching, _IsRotatingCamera;
 
         private static float _SystemTime;
         public static float SystemTime { get => _SystemTime; set => _SystemTime = value; }
         public static SwitchingModeInfo SwitchingMode { get => _SwitchingModeInfo; set => _SwitchingModeInfo = value; }
         public static bool IsSwitching { get => _IsSwitching; set => _IsSwitching = value; }
         public static RenderContent CurrentStarRenderContent { get => _CurrentStarRenderContent; set => _CurrentStarRenderContent = value; }
-
+        public static WorldSystem WorldSystem { get => m_WorldSystem; set => m_WorldSystem = value; }
+        public static StarTransformSystem StarTransformSystem { get => m_StarTransformSystem; set => m_StarTransformSystem = value; }
+        public static SelectionSystem SelectionSystem { get => m_SelectionSystem; set => m_SelectionSystem = value; }
+        public static MeshRenderSystem RenderSystem { get => m_RenderSystem; set => m_RenderSystem = value; }
+        public static CopyStarColorSystem CopyStarColorSystem { get => m_CopyStarColorSystem; set => m_CopyStarColorSystem = value; }
+        public static StarDisplayColorSystem StarDisplayColorSystem { get => m_StarDisplayColorSystem; set => m_StarDisplayColorSystem = value; }
+        public static ControlSystem ControlSystem { get => m_ControlSystem; set => m_ControlSystem = value; }
+        public static CameraModule CameraModule { get => m_CameraModule; set => m_CameraModule = value; }
+        public static bool IsRotatingCamera { get => _IsRotatingCamera; set => _IsRotatingCamera = value; }
         #endregion
 
         #region Managers
         protected override void OnCreate()
         {
             m_RenderMeshResources = Resources.Load<RenderMeshResources>("RenderMeshResources");
+            m_CameraModule = Resources.Load<CameraModule>("Modules/Camera Module");
+            m_CameraModule.Init();
+
             SelectionSystem.Camera = Camera.main;
             m_WorldSystem = World.Active.GetOrCreateSystem<WorldSystem>();
             m_StarTransformSystem = World.Active.GetOrCreateSystem<StarTransformSystem>();
@@ -172,7 +183,7 @@ namespace Universe
                 Index = new StarClusterIndex { Value = 0 },
                 YSpread = 0.05D,
                 XZSpread = 0.015D,
-                DiskAB = 2000D,
+                DiskAB = 3000D,
                 DiskEccentricity = 0.5D,
                 CoreProportion = 0.4D,
                 CoreEccentricity = 0.8D,
@@ -214,6 +225,7 @@ namespace Universe
             m_StarTransformSystem.ShutDown();
             m_SelectionSystem.ShutDown();
             m_RenderSystem.ShutDown();
+            m_CameraModule.ShutDown();
         }
         #endregion
 
@@ -267,12 +279,31 @@ namespace Universe
         public static void OnPlanetCancel(InputAction.CallbackContext ctx)
         {
         }
+
+        public static void OnStarClusterRotateCameraStart(InputAction.CallbackContext ctx)
+        {
+            _IsRotatingCamera = true;
+        }
+
+        public static void OnStarClusterRotateCameraRelease(InputAction.CallbackContext ctx)
+        {
+            _IsRotatingCamera = false;
+        }
         #endregion
 
         protected override JobHandle OnUpdate(JobHandle inputDeps)
         {
             _SystemTime += Time.deltaTime;
-
+            if (_IsRotatingCamera)
+            {
+                switch (ControlSystem.ControlMode) {
+                    case ControlMode.StarCluster:
+                        CameraModule.RotateCamera(ControlSystem.InputSystem.StarCluster.RotateCamera.ReadValue<Vector2>());
+                        break;
+                    default:
+                        break;
+                } 
+            }
             if (_IsSwitching)
             {
                 StarTransformSystem.DistanceFactor = Mathf.Lerp(_SwitchingModeInfo.FromDistanceFactor, _SwitchingModeInfo.ToDistanceFactor, (_SwitchingModeInfo.Time / _SwitchingModeInfo.TotalTime));
@@ -286,6 +317,7 @@ namespace Universe
                     ControlSystem.ControlMode = _SwitchingModeInfo.TargetControlMode;
                     _CurrentStarRenderContent.MeshMaterial.Mesh = _SwitchingModeInfo.TargetMesh;
                     _CurrentStarRenderContent.MeshMaterial.Material = _SwitchingModeInfo.TargetMaterial;
+                    SelectionSystem.OnSelectionStatusReset();
                 }
             }
 
@@ -454,16 +486,18 @@ namespace Universe
         #endregion
 
         #region Public
+        private static Entity m_FollowingEntity;
         private static float _TimeSpeed;
         private static float _SimulatedTime;
         private float _ScaleFactor;
         private float _DistanceFactor;
-        private float _floatingOrigin;
+        private double3 _floatingOrigin;
         public static float SimulatedTime { get => _SimulatedTime; set => _SimulatedTime = value; }
         public float ScaleFactor { get => _ScaleFactor; set => _ScaleFactor = value; }
         public float DistanceFactor { get => _DistanceFactor; set => _DistanceFactor = value; }
         public static float TimeSpeed { get => _TimeSpeed; set => _TimeSpeed = value; }
-        public float FloatingOrigin { get => _floatingOrigin; set => _floatingOrigin = value; }
+        public double3 FloatingOrigin { get => _floatingOrigin; set => _floatingOrigin = value; }
+        public static Entity FollowingEntity { get => m_FollowingEntity; set => m_FollowingEntity = value; }
         #endregion
 
         #region Managers
@@ -474,7 +508,7 @@ namespace Universe
         public void Init()
         {
             ShutDown();
-            _ScaleFactor = 1;
+            _ScaleFactor = 30;
             _DistanceFactor = 0;
             _TimeSpeed = 1;
             Enabled = true;
@@ -492,7 +526,16 @@ namespace Universe
         #endregion
 
         #region Methods
+        public static void FollowEntity(Entity entity)
+        {
+            Debug.Log("Follow entity: " + entity);
+            m_FollowingEntity = entity;
+        }
 
+        public static void UnFollow()
+        {
+            m_FollowingEntity = Entity.Null;
+        }
         #endregion
 
         #region Jobs
@@ -512,47 +555,63 @@ namespace Universe
                 if (distanceFactor == 0) c3.Value = scaleFactor;
                 else
                 {
-                    c3.Value = Mathf.Lerp(scaleFactor, 100f / Vector3.Distance((float3)position, Vector3.zero), distanceFactor);
+                    c3.Value = Mathf.Lerp(scaleFactor, 100f / Vector3.Distance((float3)(position - floatingOrigin), Vector3.zero), distanceFactor);
                 }
             }
         }
 
         [BurstCompile]
-        protected struct CalculateStarTranslationAndColorStarClusterMode : IJobForEach<Translation, Position, OriginalColor, DisplayColor, Rotation>
+        protected struct CalculateStarTranslationAndColorStarClusterMode : IJobForEachWithEntity<Translation, Position, OriginalColor, DisplayColor, Rotation>
         {
             [ReadOnly] public double3 floatingOrigin;
             [ReadOnly] public float distanceFactor;
-            public void Execute([WriteOnly] ref Translation c0, [ReadOnly] ref Position c1, [ReadOnly] ref OriginalColor c2, [WriteOnly] ref DisplayColor c3, [WriteOnly] ref Rotation c4)
+            [ReadOnly] public Entity followingEntity;
+            public void Execute(Entity entity, int index, [WriteOnly] ref Translation c0, [ReadOnly] ref Position c1, [ReadOnly] ref OriginalColor c2, [WriteOnly] ref DisplayColor c3, [WriteOnly] ref Rotation c4)
             {
                 var position = c1.Value;
                 position -= floatingOrigin;
                 if (distanceFactor == 0) c0.Value = (float3)position;
-                else
+                else if(!followingEntity.Equals(entity))
                 {
                     float fromDistance = Vector3.Distance(Vector3.zero, (float3)position);
-                    c0.Value = Vector3.Normalize((float3)position) * Mathf.Lerp(fromDistance, 500, distanceFactor);
+                    c0.Value = Vector3.Normalize((float3)position) * Mathf.Lerp(fromDistance, 100, distanceFactor);
                 }
-                
-                c3.Value = c2.Value;
+                else
+                {
+                    c0.Value = new float3(1000000, 0, 0);
+                    return;
+                }
+                var color = c2.Value;
+                c3.Value = color * 3;
             }
         }
 
         [BurstCompile]
-        protected struct CalculateStarTranslationAndColorPlanetarySystemMode : IJobForEach<Translation, Position, OriginalColor, DisplayColor, Rotation, Scale>
+        protected struct CalculateStarTranslationAndColorPlanetarySystemMode : IJobForEachWithEntity<Translation, Position, OriginalColor, DisplayColor, Rotation, Scale>
         {
             [ReadOnly] public double3 floatingOrigin;
-            public void Execute([WriteOnly] ref Translation c0, [ReadOnly] ref Position c1, [ReadOnly] ref OriginalColor c2, [WriteOnly] ref DisplayColor c3, [WriteOnly] ref Rotation c4, [WriteOnly] ref Scale c5)
+            public void Execute(Entity entity, int index, [WriteOnly] ref Translation c0, [ReadOnly] ref Position c1, [ReadOnly] ref OriginalColor c2, [WriteOnly] ref DisplayColor c3, [WriteOnly] ref Rotation c4, [WriteOnly] ref Scale c5)
             {
                 var position = c1.Value;
                 position -= floatingOrigin;
-                c0.Value = (float3)Vector3.Normalize((float3)position) * 10000;
-                c3.Value = c2.Value;
+                if (position.x == 0 && position.y == 0 && position.z == 0)
+                {
+                    c0.Value = new float3(1000000, 0, 0);
+                    c5.Value = 0;
+                    return;
+                }
+                else
+                {
+                    c0.Value = (float3)Vector3.Normalize((float3)position) * 10000;
+                    
+                }
+                var color = c2.Value;
+                c3.Value = color * 3;
                 c4.Value = Quaternion.FromToRotation(Vector3.forward, (float3)position);
-                c5.Value = 2000f / Vector3.Distance((float3)position, Vector3.zero);
+                c5.Value = 10000f / Vector3.Distance((float3)position, Vector3.zero);
             }
         }
 
-        [BurstCompile]
         protected struct RefreashStarOrbit : IJobForEach<StarClusterIndex, StarOrbit, StarOrbitOffset, StarOrbitProportion>
         {
             [ReadOnly] public StarClusterPattern pattern;
@@ -570,6 +629,7 @@ namespace Universe
         protected override JobHandle OnUpdate(JobHandle inputDeps)
         {
             _SimulatedTime += Time.deltaTime * _TimeSpeed;
+            
             foreach (var pattern in WorldSystem.StarClusterPatterns)
             {
                 inputDeps = new CalculateStarPositionAndScale
@@ -581,10 +641,11 @@ namespace Universe
                     floatingOrigin = _floatingOrigin
                 }.Schedule(this, inputDeps);
                 inputDeps.Complete();
+                if (m_FollowingEntity != Entity.Null) _floatingOrigin = EntityManager.GetComponentData<Position>(m_FollowingEntity).Value;
                 if (ControlSystem.ControlMode == ControlMode.PlanetarySystem) {
                     inputDeps = new CalculateStarTranslationAndColorPlanetarySystemMode
                     {
-                        floatingOrigin = _floatingOrigin
+                        floatingOrigin = _floatingOrigin,
                     }.Schedule(this, inputDeps);
                     Enabled = false;
                 }
@@ -593,10 +654,29 @@ namespace Universe
                     inputDeps = new CalculateStarTranslationAndColorStarClusterMode
                     {
                         distanceFactor = _DistanceFactor,
-                        floatingOrigin = _floatingOrigin
+                        floatingOrigin = _floatingOrigin,
+                        followingEntity = m_FollowingEntity
                     }.Schedule(this, inputDeps);
                 }
             }
+            #region Floating Origin
+            if (m_FollowingEntity == Entity.Null)
+            {
+                var xz = ControlSystem.InputSystem.StarCluster.MoveCamera.ReadValue<Vector2>();
+                Vector3 forward = CameraModule.MainCameraTransform.forward;
+                Vector3 right = CameraModule.MainCameraTransform.right;
+                var y = ControlSystem.InputSystem.StarCluster.AltCamera.ReadValue<float>();
+                var delta = forward * xz.y + right * xz.x;
+                _floatingOrigin += new double3(delta.x, delta.y, delta.z) * _ScaleFactor;
+                _floatingOrigin.y += y * _ScaleFactor;
+            }
+            #endregion
+
+            #region Zoom
+            _ScaleFactor += ControlSystem.InputSystem.StarCluster.Zoom.ReadValue<float>() / 50;
+            _ScaleFactor = Mathf.Clamp(_ScaleFactor, 1f, 5);
+            #endregion
+
             inputDeps.Complete();
             return inputDeps;
         }
@@ -637,7 +717,9 @@ namespace Universe
             ShutDown();
             _RayCastResultEntities = new NativeQueue<Entity>(Allocator.Persistent);
             _Distances = new NativeQueue<float>(Allocator.Persistent);
-
+            _MaxRayCastDistance = 10000;
+            _EnableRaySelection = true;
+            _EnableBoxSelection = false;
             Enabled = true;
         }
 
@@ -655,6 +737,14 @@ namespace Universe
         #endregion
 
         #region Methods
+        public static void OnRaySelectEnter(InputAction.CallbackContext ctx)
+        {
+            if(m_RayCastSelectedEntity != Entity.Null)
+            {
+                StarTransformSystem.FollowEntity(m_RayCastSelectedEntity);
+            }
+        }
+
         public static void OnBoxSelectEnter(InputAction.CallbackContext ctx)
         {
             _EnableRaySelection = false;
@@ -665,10 +755,13 @@ namespace Universe
         public static void OnBoxSelectRelease(InputAction.CallbackContext ctx)
         {
             _EnableBoxSelection = false;
+            _EnableRaySelection = true;
         }
 
         public static void OnSelectionStatusReset()
         {
+            m_RayCastSelectedEntity = Entity.Null;
+            StarTransformSystem.UnFollow();
             _Reset = true;
         }
         #endregion
@@ -743,6 +836,7 @@ namespace Universe
                 {
                     start = ray.origin,
                     end = ray.origin + ray.direction * _MaxRayCastDistance,
+                    rayCastDistance = _MaxRayCastDistance,
                     rayCastResultEntities = _RayCastResultEntities.AsParallelWriter(),
                     rayCastDistances = _Distances.AsParallelWriter(),
                 }.Schedule(this, inputDeps);
@@ -777,6 +871,7 @@ namespace Universe
             if (_Reset)
             {
                 _Reset = false;
+                
                 inputDeps = new ResetSelectionStatus { }.Schedule(this, inputDeps);
                 inputDeps.Complete();
             }
@@ -897,7 +992,6 @@ namespace Universe
         #region Public
 
         #endregion
-
 
         #region Managers
         protected override void OnCreate()

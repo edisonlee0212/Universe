@@ -74,6 +74,38 @@ namespace Universe
                     ""expectedControlType"": """",
                     ""processors"": """",
                     ""interactions"": ""Press""
+                },
+                {
+                    ""name"": ""RotateCamera"",
+                    ""type"": ""Value"",
+                    ""id"": ""49fecd58-d45e-45eb-b3fd-1d26da85cce9"",
+                    ""expectedControlType"": ""Vector2"",
+                    ""processors"": """",
+                    ""interactions"": """"
+                },
+                {
+                    ""name"": ""CameraRotateStart"",
+                    ""type"": ""Button"",
+                    ""id"": ""c06439bf-d792-43ec-8c18-92d6755c82c7"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
+                    ""interactions"": ""Press""
+                },
+                {
+                    ""name"": ""CameraRotateRelease"",
+                    ""type"": ""Button"",
+                    ""id"": ""b34966a6-8136-4b7c-949e-487f8fdaaa99"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
+                    ""interactions"": """"
+                },
+                {
+                    ""name"": ""FollowStar"",
+                    ""type"": ""Button"",
+                    ""id"": ""06a745d5-d3fc-4567-bd89-47ede661429e"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
+                    ""interactions"": ""Press""
                 }
             ],
             ""bindings"": [
@@ -166,6 +198,83 @@ namespace Universe
                     ""isPartOfComposite"": true
                 },
                 {
+                    ""name"": """",
+                    ""id"": ""f0faf8a0-79c2-4879-aebc-2a8b3e1b3984"",
+                    ""path"": ""<Mouse>/leftButton"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""BoxSelectionStart"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""0087bb96-834c-4839-9b9b-3ca9fc0b16c0"",
+                    ""path"": ""<Mouse>/leftButton"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""BoxSelectionRelease"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""5f9e7c23-8a5c-4a88-98b2-adf550176af8"",
+                    ""path"": ""<Keyboard>/escape"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""Cancel"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""9327fc0b-1309-43bb-93d4-e10d33daa7b6"",
+                    ""path"": ""<Keyboard>/enter"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""ToPlanetarySystem"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""0f5d948d-6c32-4dd6-ac8e-babb619520a5"",
+                    ""path"": ""<Mouse>/delta"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""RotateCamera"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""611f53e4-1ff8-45e8-b1fe-55b74653a2be"",
+                    ""path"": ""<Mouse>/rightButton"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""CameraRotateStart"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""bc1b0e0e-2b50-49e9-bc6d-b8c56336b6c4"",
+                    ""path"": ""<Mouse>/rightButton"",
+                    ""interactions"": ""Press(behavior=1)"",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""CameraRotateRelease"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
                     ""name"": ""1D Axis"",
                     ""id"": ""ed380f68-9eb6-4b26-9464-af59a1dfed1d"",
                     ""path"": ""1DAxis"",
@@ -200,45 +309,12 @@ namespace Universe
                 },
                 {
                     ""name"": """",
-                    ""id"": ""f0faf8a0-79c2-4879-aebc-2a8b3e1b3984"",
-                    ""path"": ""<Mouse>/rightButton"",
-                    ""interactions"": """",
-                    ""processors"": """",
-                    ""groups"": """",
-                    ""action"": ""BoxSelectionStart"",
-                    ""isComposite"": false,
-                    ""isPartOfComposite"": false
-                },
-                {
-                    ""name"": """",
-                    ""id"": ""0087bb96-834c-4839-9b9b-3ca9fc0b16c0"",
-                    ""path"": ""<Mouse>/rightButton"",
-                    ""interactions"": """",
-                    ""processors"": """",
-                    ""groups"": """",
-                    ""action"": ""BoxSelectionRelease"",
-                    ""isComposite"": false,
-                    ""isPartOfComposite"": false
-                },
-                {
-                    ""name"": """",
-                    ""id"": ""5f9e7c23-8a5c-4a88-98b2-adf550176af8"",
-                    ""path"": ""<Keyboard>/escape"",
-                    ""interactions"": """",
-                    ""processors"": """",
-                    ""groups"": """",
-                    ""action"": ""Cancel"",
-                    ""isComposite"": false,
-                    ""isPartOfComposite"": false
-                },
-                {
-                    ""name"": """",
-                    ""id"": ""9327fc0b-1309-43bb-93d4-e10d33daa7b6"",
+                    ""id"": ""8f03bcc6-0ef3-44f6-9dc5-2203e3a366ee"",
                     ""path"": ""<Keyboard>/f"",
                     ""interactions"": """",
                     ""processors"": """",
                     ""groups"": """",
-                    ""action"": ""ToPlanetarySystem"",
+                    ""action"": ""FollowStar"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
                 }
@@ -310,6 +386,10 @@ namespace Universe
             m_StarCluster_BoxSelectionRelease = m_StarCluster.GetAction("BoxSelectionRelease");
             m_StarCluster_Cancel = m_StarCluster.GetAction("Cancel");
             m_StarCluster_ToPlanetarySystem = m_StarCluster.GetAction("ToPlanetarySystem");
+            m_StarCluster_RotateCamera = m_StarCluster.GetAction("RotateCamera");
+            m_StarCluster_CameraRotateStart = m_StarCluster.GetAction("CameraRotateStart");
+            m_StarCluster_CameraRotateRelease = m_StarCluster.GetAction("CameraRotateRelease");
+            m_StarCluster_FollowStar = m_StarCluster.GetAction("FollowStar");
             // Planet
             m_Planet = asset.GetActionMap("Planet");
             m_Planet_Newaction = m_Planet.GetAction("New action");
@@ -372,6 +452,10 @@ namespace Universe
         private readonly InputAction m_StarCluster_BoxSelectionRelease;
         private readonly InputAction m_StarCluster_Cancel;
         private readonly InputAction m_StarCluster_ToPlanetarySystem;
+        private readonly InputAction m_StarCluster_RotateCamera;
+        private readonly InputAction m_StarCluster_CameraRotateStart;
+        private readonly InputAction m_StarCluster_CameraRotateRelease;
+        private readonly InputAction m_StarCluster_FollowStar;
         public struct StarClusterActions
         {
             private Controls m_Wrapper;
@@ -383,6 +467,10 @@ namespace Universe
             public InputAction @BoxSelectionRelease => m_Wrapper.m_StarCluster_BoxSelectionRelease;
             public InputAction @Cancel => m_Wrapper.m_StarCluster_Cancel;
             public InputAction @ToPlanetarySystem => m_Wrapper.m_StarCluster_ToPlanetarySystem;
+            public InputAction @RotateCamera => m_Wrapper.m_StarCluster_RotateCamera;
+            public InputAction @CameraRotateStart => m_Wrapper.m_StarCluster_CameraRotateStart;
+            public InputAction @CameraRotateRelease => m_Wrapper.m_StarCluster_CameraRotateRelease;
+            public InputAction @FollowStar => m_Wrapper.m_StarCluster_FollowStar;
             public InputActionMap Get() { return m_Wrapper.m_StarCluster; }
             public void Enable() { Get().Enable(); }
             public void Disable() { Get().Disable(); }
@@ -413,6 +501,18 @@ namespace Universe
                     ToPlanetarySystem.started -= m_Wrapper.m_StarClusterActionsCallbackInterface.OnToPlanetarySystem;
                     ToPlanetarySystem.performed -= m_Wrapper.m_StarClusterActionsCallbackInterface.OnToPlanetarySystem;
                     ToPlanetarySystem.canceled -= m_Wrapper.m_StarClusterActionsCallbackInterface.OnToPlanetarySystem;
+                    RotateCamera.started -= m_Wrapper.m_StarClusterActionsCallbackInterface.OnRotateCamera;
+                    RotateCamera.performed -= m_Wrapper.m_StarClusterActionsCallbackInterface.OnRotateCamera;
+                    RotateCamera.canceled -= m_Wrapper.m_StarClusterActionsCallbackInterface.OnRotateCamera;
+                    CameraRotateStart.started -= m_Wrapper.m_StarClusterActionsCallbackInterface.OnCameraRotateStart;
+                    CameraRotateStart.performed -= m_Wrapper.m_StarClusterActionsCallbackInterface.OnCameraRotateStart;
+                    CameraRotateStart.canceled -= m_Wrapper.m_StarClusterActionsCallbackInterface.OnCameraRotateStart;
+                    CameraRotateRelease.started -= m_Wrapper.m_StarClusterActionsCallbackInterface.OnCameraRotateRelease;
+                    CameraRotateRelease.performed -= m_Wrapper.m_StarClusterActionsCallbackInterface.OnCameraRotateRelease;
+                    CameraRotateRelease.canceled -= m_Wrapper.m_StarClusterActionsCallbackInterface.OnCameraRotateRelease;
+                    FollowStar.started -= m_Wrapper.m_StarClusterActionsCallbackInterface.OnFollowStar;
+                    FollowStar.performed -= m_Wrapper.m_StarClusterActionsCallbackInterface.OnFollowStar;
+                    FollowStar.canceled -= m_Wrapper.m_StarClusterActionsCallbackInterface.OnFollowStar;
                 }
                 m_Wrapper.m_StarClusterActionsCallbackInterface = instance;
                 if (instance != null)
@@ -438,6 +538,18 @@ namespace Universe
                     ToPlanetarySystem.started += instance.OnToPlanetarySystem;
                     ToPlanetarySystem.performed += instance.OnToPlanetarySystem;
                     ToPlanetarySystem.canceled += instance.OnToPlanetarySystem;
+                    RotateCamera.started += instance.OnRotateCamera;
+                    RotateCamera.performed += instance.OnRotateCamera;
+                    RotateCamera.canceled += instance.OnRotateCamera;
+                    CameraRotateStart.started += instance.OnCameraRotateStart;
+                    CameraRotateStart.performed += instance.OnCameraRotateStart;
+                    CameraRotateStart.canceled += instance.OnCameraRotateStart;
+                    CameraRotateRelease.started += instance.OnCameraRotateRelease;
+                    CameraRotateRelease.performed += instance.OnCameraRotateRelease;
+                    CameraRotateRelease.canceled += instance.OnCameraRotateRelease;
+                    FollowStar.started += instance.OnFollowStar;
+                    FollowStar.performed += instance.OnFollowStar;
+                    FollowStar.canceled += instance.OnFollowStar;
                 }
             }
         }
@@ -517,6 +629,10 @@ namespace Universe
             void OnBoxSelectionRelease(InputAction.CallbackContext context);
             void OnCancel(InputAction.CallbackContext context);
             void OnToPlanetarySystem(InputAction.CallbackContext context);
+            void OnRotateCamera(InputAction.CallbackContext context);
+            void OnCameraRotateStart(InputAction.CallbackContext context);
+            void OnCameraRotateRelease(InputAction.CallbackContext context);
+            void OnFollowStar(InputAction.CallbackContext context);
         }
         public interface IPlanetActions
         {

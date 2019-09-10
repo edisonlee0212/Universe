@@ -260,7 +260,6 @@ namespace Universe
             CoreAB = CenterAB / 2 + CenterAB / 2 +
                 ((DiskA + DiskB) - CenterAB / 2 - CenterAB / 2)
                 * CoreProportion;
-            Debug.Log(CoreAB);
             CoreA = CoreAB * CoreEccentricity;
             CoreB = CoreAB * (1 - CoreEccentricity);
             
