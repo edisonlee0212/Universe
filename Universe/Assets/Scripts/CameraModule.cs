@@ -35,8 +35,7 @@ namespace Universe {
         #region Methods
         public static void RotateCamera(Vector2 angle)
         {
-            _X += angle.x / 40;
-            _Y -= angle.y / 40;
+            _X += angle.x / 40;             _Y -= angle.y / 40;
             _Y = ClampAngle(_Y, -90, 90);
             Quaternion rotation = Quaternion.Euler(_Y, _X, 0);
             m_MainCameraTransform.localRotation = rotation;

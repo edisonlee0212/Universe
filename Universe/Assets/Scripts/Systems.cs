@@ -23,7 +23,7 @@ namespace Universe
         #endregion
 
         #region Public
-        private static ControlMode _ControlMode;
+        private static ControlMode _ControlMode, _SavedControlMode;
         private static Controls _InputSystem;
         public static Controls InputSystem { get => _InputSystem; set => _InputSystem = value; }
         public static ControlMode ControlMode
@@ -65,6 +65,21 @@ namespace Universe
 
                 _ControlMode = value;
             }
+        }
+
+        public static ControlMode SavedControlMode { get => _SavedControlMode; set => _SavedControlMode = value; }
+        #endregion
+
+        #region Methods
+        public static void Interrupt()
+        {
+            _SavedControlMode = _ControlMode;
+            ControlMode = ControlMode.NoControl;
+        }
+
+        public static void Resume()
+        {
+            ControlMode = _SavedControlMode;
         }
         #endregion
 
@@ -134,7 +149,7 @@ namespace Universe
             public Material TargetMaterial;
         }
         private static SwitchingModeInfo _SwitchingModeInfo;
-        private static bool _IsSwitching, _IsRotatingCamera;
+        private static bool _IsRunning, _IsSwitching, _IsRotatingCamera;
 
         private static float _SystemTime;
         public static float SystemTime { get => _SystemTime; set => _SystemTime = value; }
@@ -150,11 +165,18 @@ namespace Universe
         public static ControlSystem ControlSystem { get => m_ControlSystem; set => m_ControlSystem = value; }
         public static CameraModule CameraModule { get => m_CameraModule; set => m_CameraModule = value; }
         public static bool IsRotatingCamera { get => _IsRotatingCamera; set => _IsRotatingCamera = value; }
+        public static bool IsRunning { get => _IsRunning; set => _IsRunning = value; }
         #endregion
 
         #region Managers
         protected override void OnCreate()
         {
+            //Init();
+        }
+
+        public void Init()
+        {
+            _IsRunning = true;
             m_RenderMeshResources = Resources.Load<RenderMeshResources>("RenderMeshResources");
             m_CameraModule = Resources.Load<CameraModule>("Modules/Camera Module");
             m_CameraModule.Init();
@@ -219,7 +241,7 @@ namespace Universe
             }
         }
 
-        protected override void OnDestroy()
+        public void ShutDown()
         {
             m_WorldSystem.ShutDown();
             m_StarTransformSystem.ShutDown();
@@ -227,13 +249,17 @@ namespace Universe
             m_RenderSystem.ShutDown();
             m_CameraModule.ShutDown();
         }
+        protected override void OnDestroy()
+        {
+            if (_IsRunning) ShutDown();
+        }
         #endregion
 
         #region Methods
         public static void StarClusterModeToPlanetarySystemMode(InputAction.CallbackContext ctx)
         {
             if (_IsSwitching) return;
-            ControlSystem.ControlMode = ControlMode.NoControl;
+            ControlSystem.Interrupt();
             //TODO: Switch to planetary system.
             _SwitchingModeInfo.TargetControlMode = ControlMode.PlanetarySystem;
             _SwitchingModeInfo.TotalTime = 2f;
@@ -258,7 +284,7 @@ namespace Universe
         {
             if (_IsSwitching) return;
             StarTransformSystem.Enabled = true;
-            ControlSystem.ControlMode = ControlMode.NoControl;
+            ControlSystem.Interrupt();
             //TODO: Switch to star cluster.
             _SwitchingModeInfo.TargetControlMode = ControlMode.StarCluster;
             _SwitchingModeInfo.TotalTime = 2f;
@@ -320,7 +346,6 @@ namespace Universe
                     SelectionSystem.OnSelectionStatusReset();
                 }
             }
-
             return inputDeps;
         }
     }
@@ -435,7 +460,7 @@ namespace Universe
                 for (int i = 0; i < 100 && i < count; i++)
                 {
                     var starInfo = _StarCreationQueue.Dequeue();
-                    CreateStar(inputDeps, starInfo);
+                    CreateStar(ref inputDeps, starInfo);
                 }
             }
             else if (_StarDestructionQueue.Count != 0)
@@ -444,13 +469,13 @@ namespace Universe
                 for (int i = 0; i < 100 && i < count; i++)
                 {
                     var starEntity = _StarDestructionQueue.Dequeue();
-                    DestroyStar(inputDeps, starEntity);
+                    DestroyStar(ref inputDeps, starEntity);
                 }
             }
             return inputDeps;
         }
 
-        private void CreateStar(JobHandle inputDeps, StarInfo starInfo)
+        private void CreateStar(ref JobHandle inputDeps, StarInfo starInfo)
         {
             Entity instance = EntityManager.CreateEntity(_StarEntityArchetype);
             var orbitOffset = _StarClusterPatterns[starInfo.StarClusterIndex.Value].GetOrbitOffset(starInfo.StarOrbitProportion.Value);
@@ -469,7 +494,7 @@ namespace Universe
             _StarAmount++;
         }
 
-        private void DestroyStar(JobHandle inputDeps, Entity starEntity)
+        private void DestroyStar(ref JobHandle inputDeps, Entity starEntity)
         {
             EntityManager.DestroyEntity(starEntity);
             _StarAmount--;
@@ -481,7 +506,8 @@ namespace Universe
     public class StarTransformSystem : JobComponentSystem, ISubSystem
     {
         #region Private
-
+        private static float _FollowEntityTimer, _FollowEntityTotalTime;
+        private static double3 _OriginalFloatingOrigin;
 
         #endregion
 
@@ -489,15 +515,17 @@ namespace Universe
         private static Entity m_FollowingEntity;
         private static float _TimeSpeed;
         private static float _SimulatedTime;
-        private float _ScaleFactor;
-        private float _DistanceFactor;
-        private double3 _floatingOrigin;
+        private static float _ScaleFactor;
+        private static float _DistanceFactor;
+        private static bool _StartFollow;
+        private static double3 _FloatingOrigin;
         public static float SimulatedTime { get => _SimulatedTime; set => _SimulatedTime = value; }
-        public float ScaleFactor { get => _ScaleFactor; set => _ScaleFactor = value; }
-        public float DistanceFactor { get => _DistanceFactor; set => _DistanceFactor = value; }
+        public static float ScaleFactor { get => _ScaleFactor; set => _ScaleFactor = value; }
+        public static float DistanceFactor { get => _DistanceFactor; set => _DistanceFactor = value; }
         public static float TimeSpeed { get => _TimeSpeed; set => _TimeSpeed = value; }
-        public double3 FloatingOrigin { get => _floatingOrigin; set => _floatingOrigin = value; }
+        public static double3 FloatingOrigin { get => _FloatingOrigin; set => _FloatingOrigin = value; }
         public static Entity FollowingEntity { get => m_FollowingEntity; set => m_FollowingEntity = value; }
+        public static bool StartFollow { get => _StartFollow; set => _StartFollow = value; }
         #endregion
 
         #region Managers
@@ -508,9 +536,9 @@ namespace Universe
         public void Init()
         {
             ShutDown();
-            _ScaleFactor = 30;
+            _ScaleFactor = 1;
             _DistanceFactor = 0;
-            _TimeSpeed = 1;
+            _TimeSpeed = 0.1f;
             Enabled = true;
         }
 
@@ -528,7 +556,11 @@ namespace Universe
         #region Methods
         public static void FollowEntity(Entity entity)
         {
-            Debug.Log("Follow entity: " + entity);
+            _StartFollow = true;
+            ControlSystem.Interrupt();
+            _OriginalFloatingOrigin = _FloatingOrigin;
+            _FollowEntityTimer = 0;
+            _FollowEntityTotalTime = 1;
             m_FollowingEntity = entity;
         }
 
@@ -629,7 +661,18 @@ namespace Universe
         protected override JobHandle OnUpdate(JobHandle inputDeps)
         {
             _SimulatedTime += Time.deltaTime * _TimeSpeed;
-            
+            if (_StartFollow)
+            {
+                _FollowEntityTimer += Time.deltaTime;
+                double3 target = EntityManager.GetComponentData<Position>(m_FollowingEntity).Value;
+                float proportion = _FollowEntityTimer / _FollowEntityTotalTime;
+                _FloatingOrigin = target * proportion + _OriginalFloatingOrigin * (1 - proportion);
+                if (_FollowEntityTimer > _FollowEntityTotalTime)
+                {
+                    _StartFollow = false;
+                    ControlSystem.Resume();
+                }
+            }
             foreach (var pattern in WorldSystem.StarClusterPatterns)
             {
                 inputDeps = new CalculateStarPositionAndScale
@@ -638,14 +681,14 @@ namespace Universe
                     scaleFactor = _ScaleFactor,
                     patternIndex = pattern.Index.Value,
                     distanceFactor = _DistanceFactor,
-                    floatingOrigin = _floatingOrigin
+                    floatingOrigin = _FloatingOrigin
                 }.Schedule(this, inputDeps);
                 inputDeps.Complete();
-                if (m_FollowingEntity != Entity.Null) _floatingOrigin = EntityManager.GetComponentData<Position>(m_FollowingEntity).Value;
+                if (m_FollowingEntity != Entity.Null && !_StartFollow) _FloatingOrigin = EntityManager.GetComponentData<Position>(m_FollowingEntity).Value;
                 if (ControlSystem.ControlMode == ControlMode.PlanetarySystem) {
                     inputDeps = new CalculateStarTranslationAndColorPlanetarySystemMode
                     {
-                        floatingOrigin = _floatingOrigin,
+                        floatingOrigin = _FloatingOrigin,
                     }.Schedule(this, inputDeps);
                     Enabled = false;
                 }
@@ -654,7 +697,7 @@ namespace Universe
                     inputDeps = new CalculateStarTranslationAndColorStarClusterMode
                     {
                         distanceFactor = _DistanceFactor,
-                        floatingOrigin = _floatingOrigin,
+                        floatingOrigin = _FloatingOrigin,
                         followingEntity = m_FollowingEntity
                     }.Schedule(this, inputDeps);
                 }
@@ -667,8 +710,8 @@ namespace Universe
                 Vector3 right = CameraModule.MainCameraTransform.right;
                 var y = ControlSystem.InputSystem.StarCluster.AltCamera.ReadValue<float>();
                 var delta = forward * xz.y + right * xz.x;
-                _floatingOrigin += new double3(delta.x, delta.y, delta.z) * _ScaleFactor;
-                _floatingOrigin.y += y * _ScaleFactor;
+                _FloatingOrigin += new double3(delta.x, delta.y, delta.z) * _ScaleFactor;
+                _FloatingOrigin.y += y * _ScaleFactor;
             }
             #endregion
 
