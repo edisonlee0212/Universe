@@ -4,64 +4,6 @@ using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
 
-public class TerrainFace
-{
-
-    Mesh mesh;
-    int resolution;
-    Vector3 localUp;
-    Vector3 axisA;
-    Vector3 axisB;
-
-    public TerrainFace(Mesh mesh, int resolution, Vector3 localUp)
-    {
-        this.mesh = mesh;
-        this.resolution = resolution;
-        this.localUp = localUp;
-
-        axisA = new Vector3(localUp.y, localUp.z, localUp.x);
-        axisB = Vector3.Cross(localUp, axisA);
-    }
-
-    public void ConstructMesh(float radius)
-    {
-        Vector3[] vertices = new Vector3[resolution * resolution];
-        int[] triangles = new int[(resolution - 1) * (resolution - 1) * 6];
-        int triIndex = 0;
-
-        for (int y = 0; y < resolution; y++)
-        {
-            for (int x = 0; x < resolution; x++)
-            {
-                int i = x + y * resolution;
-                Vector2 percent = new Vector2(x, y) / (resolution - 1) / 2;
-                //Vector3 pointOnUnitCube = localUp + (percent.x - .5f) * 2 * axisA + (percent.y - .5f) * 2 * axisB;
-                Vector3 pointOnUnitCube = localUp + (percent.x + (float)1f / 2 - .5f) * axisA + (percent.y + (float)1f / 2 - .5f) * axisB;
-
-                Vector3 pointOnUnitSphere = pointOnUnitCube.normalized * radius;
-                vertices[i] = pointOnUnitSphere;
-
-                if (x != resolution - 1 && y != resolution - 1)
-                {
-                    triangles[triIndex] = i;
-                    triangles[triIndex + 1] = i + resolution + 1;
-                    triangles[triIndex + 2] = i + resolution;
-
-                    triangles[triIndex + 3] = i;
-                    triangles[triIndex + 4] = i + 1;
-                    triangles[triIndex + 5] = i + resolution + 1;
-                    triIndex += 6;
-                }
-            }
-        }
-        mesh.Clear();
-        //mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
-        mesh.vertices = vertices;
-        mesh.triangles = triangles;
-        mesh.RecalculateNormals();
-    }
-}
-
 public struct TerrainMesh
 {
     private Mesh _Mesh;
@@ -89,6 +31,8 @@ public struct TerrainChunkInfo
     //The index of four children, upperleft = 0, upperright = 1, lower left = 2, lower right = 3.
     private int _Child0, _Child1, _Child2, _Child3;
 
+    private int _Resolution;
+
     private double3 _LocalUp, _AxisA, _AxisB;
     public int DetailLevel { get => _DetailLevel; set => _DetailLevel = value; }
     public bool IsMesh { get => _IsMesh; set => _IsMesh = value; }
@@ -115,7 +59,7 @@ public struct TerrainChunkInfo
         return ret; 
     }
 
-    public TerrainChunkInfo(int parentIndex, int detailLevel, int2 chunkCoordinate, bool isLeft, bool isUp, double3 localUp)
+    public TerrainChunkInfo(int parentIndex, int detailLevel, int2 chunkCoordinate, bool isLeft, bool isUp, double3 localUp, int resolution)
     {
         _IsMesh = false;
         _MeshIndex = -1;
@@ -132,6 +76,7 @@ public struct TerrainChunkInfo
         _AxisA = new double3(localUp.y, localUp.z, localUp.x);
         _AxisB = (float3)Vector3.Cross((float3)localUp, (float3)_AxisA);
         _TooFar = false;
+        _Resolution = resolution;
         Normalize(ref _LocalUp);
     }
 
@@ -148,12 +93,12 @@ public struct TerrainChunkInfo
     {
         Debug.Assert(_IsMesh);
         int actualDetailLevel = (int)math.pow(2, _DetailLevel);
-        for (int y = 0; y < 16; y++)
+        for (int y = 0; y < _Resolution; y++)
         {
-            for (int x = 0; x < 16; x++)
+            for (int x = 0; x < _Resolution; x++)
             {
-                int i = x + y * 16;
-                double2 percent = new double2(x, y) / 15 / actualDetailLevel;
+                int i = x + y * _Resolution;
+                double2 percent = new double2(x, y) / (_Resolution - 1) / actualDetailLevel;
                 double3 pointOnUnitCube = _LocalUp + (percent.x + (double)_ChunkCoordinate.x / actualDetailLevel - .5D) * 2 * _AxisA + (percent.y + (double)_ChunkCoordinate.y / actualDetailLevel - .5D) * 2 * _AxisB;
                 Normalize(ref pointOnUnitCube);
                 vertices[i] = (float3)(pointOnUnitCube * radius);

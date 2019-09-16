@@ -358,6 +358,14 @@ namespace Universe
                     ""expectedControlType"": """",
                     ""processors"": """",
                     ""interactions"": ""Press""
+                },
+                {
+                    ""name"": ""MoveCamera"",
+                    ""type"": ""Value"",
+                    ""id"": ""54ee392d-61dd-41d1-859d-c5fe7d47c39b"",
+                    ""expectedControlType"": ""Axis"",
+                    ""processors"": """",
+                    ""interactions"": """"
                 }
             ],
             ""bindings"": [
@@ -371,6 +379,61 @@ namespace Universe
                     ""action"": ""Cancel"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": ""WASD"",
+                    ""id"": ""4adee7b0-16fe-40b7-bb7e-7904dd3ca5d6"",
+                    ""path"": ""2DVector"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""MoveCamera"",
+                    ""isComposite"": true,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": ""up"",
+                    ""id"": ""3874a0f7-1de4-454a-8960-684580bc8195"",
+                    ""path"": ""<Keyboard>/w"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""MoveCamera"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": true
+                },
+                {
+                    ""name"": ""down"",
+                    ""id"": ""713ce5c9-5171-4b0a-9b91-81fa47f4d38a"",
+                    ""path"": ""<Keyboard>/s"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""MoveCamera"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": true
+                },
+                {
+                    ""name"": ""left"",
+                    ""id"": ""0386bf1a-b95f-484d-83f8-ae30d182e20e"",
+                    ""path"": ""<Keyboard>/a"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""MoveCamera"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": true
+                },
+                {
+                    ""name"": ""right"",
+                    ""id"": ""779ff189-38ca-4816-97a9-9d18d0be3b04"",
+                    ""path"": ""<Keyboard>/d"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""MoveCamera"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": true
                 }
             ]
         }
@@ -396,6 +459,7 @@ namespace Universe
             // PlanetarySystem
             m_PlanetarySystem = asset.GetActionMap("PlanetarySystem");
             m_PlanetarySystem_Cancel = m_PlanetarySystem.GetAction("Cancel");
+            m_PlanetarySystem_MoveCamera = m_PlanetarySystem.GetAction("MoveCamera");
         }
 
         ~Controls()
@@ -592,11 +656,13 @@ namespace Universe
         private readonly InputActionMap m_PlanetarySystem;
         private IPlanetarySystemActions m_PlanetarySystemActionsCallbackInterface;
         private readonly InputAction m_PlanetarySystem_Cancel;
+        private readonly InputAction m_PlanetarySystem_MoveCamera;
         public struct PlanetarySystemActions
         {
             private Controls m_Wrapper;
             public PlanetarySystemActions(Controls wrapper) { m_Wrapper = wrapper; }
             public InputAction @Cancel => m_Wrapper.m_PlanetarySystem_Cancel;
+            public InputAction @MoveCamera => m_Wrapper.m_PlanetarySystem_MoveCamera;
             public InputActionMap Get() { return m_Wrapper.m_PlanetarySystem; }
             public void Enable() { Get().Enable(); }
             public void Disable() { Get().Disable(); }
@@ -609,6 +675,9 @@ namespace Universe
                     Cancel.started -= m_Wrapper.m_PlanetarySystemActionsCallbackInterface.OnCancel;
                     Cancel.performed -= m_Wrapper.m_PlanetarySystemActionsCallbackInterface.OnCancel;
                     Cancel.canceled -= m_Wrapper.m_PlanetarySystemActionsCallbackInterface.OnCancel;
+                    MoveCamera.started -= m_Wrapper.m_PlanetarySystemActionsCallbackInterface.OnMoveCamera;
+                    MoveCamera.performed -= m_Wrapper.m_PlanetarySystemActionsCallbackInterface.OnMoveCamera;
+                    MoveCamera.canceled -= m_Wrapper.m_PlanetarySystemActionsCallbackInterface.OnMoveCamera;
                 }
                 m_Wrapper.m_PlanetarySystemActionsCallbackInterface = instance;
                 if (instance != null)
@@ -616,6 +685,9 @@ namespace Universe
                     Cancel.started += instance.OnCancel;
                     Cancel.performed += instance.OnCancel;
                     Cancel.canceled += instance.OnCancel;
+                    MoveCamera.started += instance.OnMoveCamera;
+                    MoveCamera.performed += instance.OnMoveCamera;
+                    MoveCamera.canceled += instance.OnMoveCamera;
                 }
             }
         }
@@ -641,6 +713,7 @@ namespace Universe
         public interface IPlanetarySystemActions
         {
             void OnCancel(InputAction.CallbackContext context);
+            void OnMoveCamera(InputAction.CallbackContext context);
         }
     }
 }

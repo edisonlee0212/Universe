@@ -129,7 +129,7 @@ namespace Universe
         private static StarDisplayColorSystem m_StarDisplayColorSystem;
         private static MeshRenderSystem m_RenderSystem;
         private static CopyStarColorSystem m_CopyStarColorSystem;
-        
+        private static PlanetarySystem m_PlanetarySystem;
         #endregion
         #endregion
 
@@ -158,6 +158,7 @@ namespace Universe
         public static RenderContent CurrentStarRenderContent { get => _CurrentStarRenderContent; set => _CurrentStarRenderContent = value; }
         public static WorldSystem WorldSystem { get => m_WorldSystem; set => m_WorldSystem = value; }
         public static StarTransformSystem StarTransformSystem { get => m_StarTransformSystem; set => m_StarTransformSystem = value; }
+        public static PlanetarySystem PlanetarySystem { get => m_PlanetarySystem; set => m_PlanetarySystem = value; }
         public static SelectionSystem SelectionSystem { get => m_SelectionSystem; set => m_SelectionSystem = value; }
         public static MeshRenderSystem RenderSystem { get => m_RenderSystem; set => m_RenderSystem = value; }
         public static CopyStarColorSystem CopyStarColorSystem { get => m_CopyStarColorSystem; set => m_CopyStarColorSystem = value; }
@@ -171,7 +172,7 @@ namespace Universe
         #region Managers
         protected override void OnCreate()
         {
-            //Init();
+            Init();
         }
 
         public void Init()
@@ -188,7 +189,7 @@ namespace Universe
             m_RenderSystem = World.Active.GetOrCreateSystem<MeshRenderSystem>();
             m_StarDisplayColorSystem = World.Active.GetOrCreateSystem<StarDisplayColorSystem>();
             m_CopyStarColorSystem = World.Active.GetOrCreateSystem<CopyStarColorSystem>();
-
+            m_PlanetarySystem = World.Active.GetOrCreateSystem<PlanetarySystem>();
 
             m_WorldSystem.Init();
             m_StarTransformSystem.Init();
@@ -258,7 +259,7 @@ namespace Universe
         #region Methods
         public static void StarClusterModeToPlanetarySystemMode(InputAction.CallbackContext ctx)
         {
-            if (_IsSwitching) return;
+            if (_IsSwitching || StarTransformSystem.FollowingEntity == Entity.Null) return;
             ControlSystem.Interrupt();
             //TODO: Switch to planetary system.
             _SwitchingModeInfo.TargetControlMode = ControlMode.PlanetarySystem;
@@ -277,12 +278,14 @@ namespace Universe
 
         public static void OnStarClusterCancel(InputAction.CallbackContext ctx)
         {
-            SelectionSystem.OnSelectionStatusReset();
+            if (StarTransformSystem.FollowingEntity != Entity.Null) StarTransformSystem.UnFollow();
+            else SelectionSystem.OnSelectionStatusReset();
         }
 
         public static void OnPlanetarySystemCancel(InputAction.CallbackContext ctx)
         {
             if (_IsSwitching) return;
+            PlanetarySystem.ShutDown();
             StarTransformSystem.Enabled = true;
             ControlSystem.Interrupt();
             //TODO: Switch to star cluster.
@@ -501,6 +504,8 @@ namespace Universe
         }
     }
 
+
+
     [UpdateBefore(typeof(TransformSystemGroup))]
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     public class StarTransformSystem : JobComponentSystem, ISubSystem
@@ -622,20 +627,20 @@ namespace Universe
         protected struct CalculateStarTranslationAndColorPlanetarySystemMode : IJobForEachWithEntity<Translation, Position, OriginalColor, DisplayColor, Rotation, Scale>
         {
             [ReadOnly] public double3 floatingOrigin;
+            [ReadOnly] public Entity followingEntity;
             public void Execute(Entity entity, int index, [WriteOnly] ref Translation c0, [ReadOnly] ref Position c1, [ReadOnly] ref OriginalColor c2, [WriteOnly] ref DisplayColor c3, [WriteOnly] ref Rotation c4, [WriteOnly] ref Scale c5)
             {
                 var position = c1.Value;
                 position -= floatingOrigin;
-                if (position.x == 0 && position.y == 0 && position.z == 0)
+                if (followingEntity.Equals(entity))
                 {
                     c0.Value = new float3(1000000, 0, 0);
-                    c5.Value = 0;
+                    c5.Value = 1;
                     return;
                 }
                 else
                 {
-                    c0.Value = (float3)Vector3.Normalize((float3)position) * 10000;
-                    
+                    c0.Value = (float3)Vector3.Normalize((float3)position) * 90000;
                 }
                 var color = c2.Value;
                 c3.Value = color * 3;
@@ -685,11 +690,18 @@ namespace Universe
                 }.Schedule(this, inputDeps);
                 inputDeps.Complete();
                 if (m_FollowingEntity != Entity.Null && !_StartFollow) _FloatingOrigin = EntityManager.GetComponentData<Position>(m_FollowingEntity).Value;
+
                 if (ControlSystem.ControlMode == ControlMode.PlanetarySystem) {
                     inputDeps = new CalculateStarTranslationAndColorPlanetarySystemMode
                     {
+                        followingEntity = m_FollowingEntity,
                         floatingOrigin = _FloatingOrigin,
                     }.Schedule(this, inputDeps);
+                    CentralSystem.PlanetarySystem.Init();
+                    PlanetarySystem.LoadPlanet(new PlanetInfo {
+                        Position = new double3(0, 0, 30000),
+                        Radius = 30000 }
+                    );
                     Enabled = false;
                 }
                 else
@@ -804,7 +816,6 @@ namespace Universe
         public static void OnSelectionStatusReset()
         {
             m_RayCastSelectedEntity = Entity.Null;
-            StarTransformSystem.UnFollow();
             _Reset = true;
         }
         #endregion
