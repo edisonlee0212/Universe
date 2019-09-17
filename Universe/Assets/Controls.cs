@@ -360,10 +360,42 @@ namespace Universe
                     ""interactions"": ""Press""
                 },
                 {
+                    ""name"": ""CameraRotateRelease"",
+                    ""type"": ""Button"",
+                    ""id"": ""21ccc294-1869-44e9-866b-076ed8ef7b99"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
+                    ""interactions"": """"
+                },
+                {
+                    ""name"": ""CameraRotateStart"",
+                    ""type"": ""Button"",
+                    ""id"": ""6280865e-b4f2-4f2a-b0f1-0896e905a769"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
+                    ""interactions"": ""Press""
+                },
+                {
                     ""name"": ""MoveCamera"",
                     ""type"": ""Value"",
                     ""id"": ""54ee392d-61dd-41d1-859d-c5fe7d47c39b"",
                     ""expectedControlType"": ""Axis"",
+                    ""processors"": """",
+                    ""interactions"": """"
+                },
+                {
+                    ""name"": ""RotateCamera"",
+                    ""type"": ""Value"",
+                    ""id"": ""d474e21b-e5db-4d37-89f6-523ac0fe6643"",
+                    ""expectedControlType"": ""Vector2"",
+                    ""processors"": """",
+                    ""interactions"": """"
+                },
+                {
+                    ""name"": ""AltCamera"",
+                    ""type"": ""Button"",
+                    ""id"": ""ac492e1a-85f5-47c9-80c7-1843b52f68a4"",
+                    ""expectedControlType"": """",
                     ""processors"": """",
                     ""interactions"": """"
                 }
@@ -434,6 +466,72 @@ namespace Universe
                     ""action"": ""MoveCamera"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": true
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""1229adf6-b05a-4e74-a0ef-126aaf17cce0"",
+                    ""path"": ""<Mouse>/rightButton"",
+                    ""interactions"": ""Press(behavior=1)"",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""CameraRotateRelease"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""f770e9bc-7200-4289-a888-792a3e60aa18"",
+                    ""path"": ""<Mouse>/rightButton"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""CameraRotateStart"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""7162a7d6-74fe-4207-90bb-72d42d93de66"",
+                    ""path"": ""<Mouse>/delta"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""RotateCamera"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": ""1D Axis"",
+                    ""id"": ""ed2ad197-0132-40c7-bbc1-9a598c1885e9"",
+                    ""path"": ""1DAxis"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""AltCamera"",
+                    ""isComposite"": true,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": ""negative"",
+                    ""id"": ""de85d3ab-4e17-411b-af80-7442c910215e"",
+                    ""path"": ""<Keyboard>/leftCtrl"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""AltCamera"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": true
+                },
+                {
+                    ""name"": ""positive"",
+                    ""id"": ""fc15d3b0-6709-4cf5-b324-91e182bbfddd"",
+                    ""path"": ""<Keyboard>/leftShift"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""AltCamera"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": true
                 }
             ]
         }
@@ -459,7 +557,11 @@ namespace Universe
             // PlanetarySystem
             m_PlanetarySystem = asset.GetActionMap("PlanetarySystem");
             m_PlanetarySystem_Cancel = m_PlanetarySystem.GetAction("Cancel");
+            m_PlanetarySystem_CameraRotateRelease = m_PlanetarySystem.GetAction("CameraRotateRelease");
+            m_PlanetarySystem_CameraRotateStart = m_PlanetarySystem.GetAction("CameraRotateStart");
             m_PlanetarySystem_MoveCamera = m_PlanetarySystem.GetAction("MoveCamera");
+            m_PlanetarySystem_RotateCamera = m_PlanetarySystem.GetAction("RotateCamera");
+            m_PlanetarySystem_AltCamera = m_PlanetarySystem.GetAction("AltCamera");
         }
 
         ~Controls()
@@ -656,13 +758,21 @@ namespace Universe
         private readonly InputActionMap m_PlanetarySystem;
         private IPlanetarySystemActions m_PlanetarySystemActionsCallbackInterface;
         private readonly InputAction m_PlanetarySystem_Cancel;
+        private readonly InputAction m_PlanetarySystem_CameraRotateRelease;
+        private readonly InputAction m_PlanetarySystem_CameraRotateStart;
         private readonly InputAction m_PlanetarySystem_MoveCamera;
+        private readonly InputAction m_PlanetarySystem_RotateCamera;
+        private readonly InputAction m_PlanetarySystem_AltCamera;
         public struct PlanetarySystemActions
         {
             private Controls m_Wrapper;
             public PlanetarySystemActions(Controls wrapper) { m_Wrapper = wrapper; }
             public InputAction @Cancel => m_Wrapper.m_PlanetarySystem_Cancel;
+            public InputAction @CameraRotateRelease => m_Wrapper.m_PlanetarySystem_CameraRotateRelease;
+            public InputAction @CameraRotateStart => m_Wrapper.m_PlanetarySystem_CameraRotateStart;
             public InputAction @MoveCamera => m_Wrapper.m_PlanetarySystem_MoveCamera;
+            public InputAction @RotateCamera => m_Wrapper.m_PlanetarySystem_RotateCamera;
+            public InputAction @AltCamera => m_Wrapper.m_PlanetarySystem_AltCamera;
             public InputActionMap Get() { return m_Wrapper.m_PlanetarySystem; }
             public void Enable() { Get().Enable(); }
             public void Disable() { Get().Disable(); }
@@ -675,9 +785,21 @@ namespace Universe
                     Cancel.started -= m_Wrapper.m_PlanetarySystemActionsCallbackInterface.OnCancel;
                     Cancel.performed -= m_Wrapper.m_PlanetarySystemActionsCallbackInterface.OnCancel;
                     Cancel.canceled -= m_Wrapper.m_PlanetarySystemActionsCallbackInterface.OnCancel;
+                    CameraRotateRelease.started -= m_Wrapper.m_PlanetarySystemActionsCallbackInterface.OnCameraRotateRelease;
+                    CameraRotateRelease.performed -= m_Wrapper.m_PlanetarySystemActionsCallbackInterface.OnCameraRotateRelease;
+                    CameraRotateRelease.canceled -= m_Wrapper.m_PlanetarySystemActionsCallbackInterface.OnCameraRotateRelease;
+                    CameraRotateStart.started -= m_Wrapper.m_PlanetarySystemActionsCallbackInterface.OnCameraRotateStart;
+                    CameraRotateStart.performed -= m_Wrapper.m_PlanetarySystemActionsCallbackInterface.OnCameraRotateStart;
+                    CameraRotateStart.canceled -= m_Wrapper.m_PlanetarySystemActionsCallbackInterface.OnCameraRotateStart;
                     MoveCamera.started -= m_Wrapper.m_PlanetarySystemActionsCallbackInterface.OnMoveCamera;
                     MoveCamera.performed -= m_Wrapper.m_PlanetarySystemActionsCallbackInterface.OnMoveCamera;
                     MoveCamera.canceled -= m_Wrapper.m_PlanetarySystemActionsCallbackInterface.OnMoveCamera;
+                    RotateCamera.started -= m_Wrapper.m_PlanetarySystemActionsCallbackInterface.OnRotateCamera;
+                    RotateCamera.performed -= m_Wrapper.m_PlanetarySystemActionsCallbackInterface.OnRotateCamera;
+                    RotateCamera.canceled -= m_Wrapper.m_PlanetarySystemActionsCallbackInterface.OnRotateCamera;
+                    AltCamera.started -= m_Wrapper.m_PlanetarySystemActionsCallbackInterface.OnAltCamera;
+                    AltCamera.performed -= m_Wrapper.m_PlanetarySystemActionsCallbackInterface.OnAltCamera;
+                    AltCamera.canceled -= m_Wrapper.m_PlanetarySystemActionsCallbackInterface.OnAltCamera;
                 }
                 m_Wrapper.m_PlanetarySystemActionsCallbackInterface = instance;
                 if (instance != null)
@@ -685,9 +807,21 @@ namespace Universe
                     Cancel.started += instance.OnCancel;
                     Cancel.performed += instance.OnCancel;
                     Cancel.canceled += instance.OnCancel;
+                    CameraRotateRelease.started += instance.OnCameraRotateRelease;
+                    CameraRotateRelease.performed += instance.OnCameraRotateRelease;
+                    CameraRotateRelease.canceled += instance.OnCameraRotateRelease;
+                    CameraRotateStart.started += instance.OnCameraRotateStart;
+                    CameraRotateStart.performed += instance.OnCameraRotateStart;
+                    CameraRotateStart.canceled += instance.OnCameraRotateStart;
                     MoveCamera.started += instance.OnMoveCamera;
                     MoveCamera.performed += instance.OnMoveCamera;
                     MoveCamera.canceled += instance.OnMoveCamera;
+                    RotateCamera.started += instance.OnRotateCamera;
+                    RotateCamera.performed += instance.OnRotateCamera;
+                    RotateCamera.canceled += instance.OnRotateCamera;
+                    AltCamera.started += instance.OnAltCamera;
+                    AltCamera.performed += instance.OnAltCamera;
+                    AltCamera.canceled += instance.OnAltCamera;
                 }
             }
         }
@@ -713,7 +847,11 @@ namespace Universe
         public interface IPlanetarySystemActions
         {
             void OnCancel(InputAction.CallbackContext context);
+            void OnCameraRotateRelease(InputAction.CallbackContext context);
+            void OnCameraRotateStart(InputAction.CallbackContext context);
             void OnMoveCamera(InputAction.CallbackContext context);
+            void OnRotateCamera(InputAction.CallbackContext context);
+            void OnAltCamera(InputAction.CallbackContext context);
         }
     }
 }

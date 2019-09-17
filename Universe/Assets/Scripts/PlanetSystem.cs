@@ -26,10 +26,14 @@ namespace Universe
         private static double3 _FloatingOrigin;
         private static List<Planet> _Planets;
         private static int _LodDistance;
+        private static int[] _LodLevelScanTime;
+        private static int _Counter;
+        private static float _Timer;
         public static int LodDistance { get => _LodDistance; set => _LodDistance = value; }
         public static List<Planet> Planets { get => _Planets; set => _Planets = value; }
         public static double3 FloatingOrigin { get => _FloatingOrigin; set => _FloatingOrigin = value; }
         public bool EnableFrustumCulling { get => _EnableFrustumCulling; set => _EnableFrustumCulling = value; }
+        public static int[] LodLevelScanTime { get => _LodLevelScanTime; set => _LodLevelScanTime = value; }
 
         #endregion
 
@@ -41,7 +45,13 @@ namespace Universe
             _x = 0;
             _LodDistance = 100000;
             FloatingOrigin = double3.zero;
-
+            _LodLevelScanTime = new int[6];
+            _LodLevelScanTime[0] = 6;
+            _LodLevelScanTime[1] = 5;
+            _LodLevelScanTime[2] = 4;
+            _LodLevelScanTime[3] = 3;
+            _LodLevelScanTime[4] = 2;
+            _LodLevelScanTime[5] = 1;
             _Planets = new List<Planet>();
         }
 
@@ -74,7 +84,8 @@ namespace Universe
         #region Methods
         public static int LoadPlanet(PlanetInfo planetInfo)
         {
-            var planet = new Planet(planetInfo, 6, 64, new Material(Shader.Find("Standard")));
+            var shapeSettings = Resources.Load<ShapeSettings>("Shape");
+            var planet = new Planet(planetInfo, _LodLevelScanTime.Length, 200, new Material(Shader.Find("Standard")), shapeSettings);
             planet.Init();
             _Planets.Add(planet);
             return _Planets.Count - 1;
@@ -89,6 +100,26 @@ namespace Universe
         #endregion
 
         #region Jobs
+
+        public struct ConstructVerticesJob : IJobParallelFor
+        {
+            [NativeDisableParallelForRestriction]
+            [WriteOnly] public NativeArray<Vector3> vertices;
+            public ShapeGenerator shapeGenerator;
+            public double radius;
+            public TerrainChunkInfo terrainChunkInfo;
+            public void Execute(int index)
+            {
+                int actualDetailLevel = (int)math.pow(2, terrainChunkInfo.DetailLevel);
+                int x = index % terrainChunkInfo.Resolution;
+                int y = index / terrainChunkInfo.Resolution;
+                double2 percent = new double2(x, y) / (terrainChunkInfo.Resolution - 1) / actualDetailLevel;
+                double3 pointOnUnitCube = terrainChunkInfo.LocalUp + (percent.x + (double)terrainChunkInfo.ChunkCoordinate.x / actualDetailLevel - .5D) * 2 * terrainChunkInfo.AxisA + (percent.y + (double)terrainChunkInfo.ChunkCoordinate.y / actualDetailLevel - .5D) * 2 * terrainChunkInfo.AxisB;
+                terrainChunkInfo.Normalize(ref pointOnUnitCube);
+                vertices[index] = (float3)(radius * shapeGenerator.CalculatePointOnPlanet(pointOnUnitCube));
+            }
+        }
+
         [BurstCompile]
         protected struct ScanDistance : IJobParallelFor
         {
@@ -149,24 +180,49 @@ namespace Universe
             }
         }
         #endregion
-
-        protected override JobHandle OnUpdate(JobHandle inputDeps)
+        int lastChildLevel;
+        private void OnFixedUpdate(ref JobHandle inputDeps)
         {
-            if (Input.GetKey(KeyCode.S)) _z -= Time.deltaTime * 15000;
-            else if (Input.GetKey(KeyCode.W)) _z += Time.deltaTime * 15000;
-            if (Input.GetKey(KeyCode.D)) _x += Time.deltaTime * 15000;
-            else if (Input.GetKey(KeyCode.A)) _x -= Time.deltaTime * 15000;
-            FloatingOrigin = new double3(_x, 0, _z);
-
+            _Counter++;
             foreach (var planet in _Planets)
             {
                 planet.ReEval(FloatingOrigin);
+                for (int i = 0; i < _LodLevelScanTime.Length; i++)
+                {
+                    if (_DestroyQueue.Count == 0 && i > 0 && _Counter % _LodLevelScanTime[i] == 0)
+                    {
+                        lastChildLevel = i;
+                        ScanAndRemove(ref inputDeps, planet, i);
+                    }
+                    if (i < _LodLevelScanTime.Length && _Counter % _LodLevelScanTime[i] == 0) ScanAndAdd(ref inputDeps, planet, i);
+                }
+            }
+            return;
+        }
 
-                ScanAndRemove(ref inputDeps, planet, planet.LevelAmount - 1);
-                ScanAndRemove(ref inputDeps, planet, planet.LevelAmount - 2);
-                ScanAndRemove(ref inputDeps, planet, planet.LevelAmount - 3);
-                ScanAndRemove(ref inputDeps, planet, planet.LevelAmount - 4);
-                ScanAndRemove(ref inputDeps, planet, planet.LevelAmount - 5);
+        protected override JobHandle OnUpdate(JobHandle inputDeps)
+        {
+            _Timer += Time.deltaTime;
+            if (_Timer > 0.2f)
+            {
+                _Timer = 0;
+                OnFixedUpdate(ref inputDeps);
+            }
+
+            if (true)
+            {
+                var xz = ControlSystem.InputSystem.PlanetarySystem.MoveCamera.ReadValue<Vector2>();
+                Vector3 forward = CameraModule.MainCameraTransform.forward;
+                Vector3 right = CameraModule.MainCameraTransform.right;
+                var y = ControlSystem.InputSystem.PlanetarySystem.AltCamera.ReadValue<float>();
+                var delta = forward * xz.y + right * xz.x;
+                _FloatingOrigin += new double3(delta.x, delta.y, delta.z) * 30;
+                _FloatingOrigin.y += y * 30;
+            }
+
+            foreach (var planet in _Planets)
+            {
+                if (_DestroyQueue.Count != 0) ContinueRemove(ref inputDeps, planet, lastChildLevel);
                 foreach (var i in planet.PlanetMeshes)
                 {
                     Quaternion.LookRotation((float3)planet.TerrainChunkInfos[i.DetailLevel][i.TerrainChunkInfoIndex].LocalUp);
@@ -188,6 +244,60 @@ namespace Universe
             bool culled = false;
 
             return culled;
+        }
+        private void ScanAndAdd(ref JobHandle inputDeps, Planet planet, int childLevel)
+        { }
+
+        private void ContinueRemove(ref JobHandle inputDeps, Planet planet, int childLevel)
+        {
+            int[] children = new int[4];
+            var childChunkList = planet.TerrainChunkInfos[childLevel];
+            var parentChunkList = planet.TerrainChunkInfos[childLevel - 1];
+            for (int i = 0; i < _DestroyQueue.Count && i < 1; i++)
+            {
+                int parentChunkIndex = _DestroyQueue.Dequeue();
+                children[0] = parentChunkList[parentChunkIndex].Child0;
+                children[1] = parentChunkList[parentChunkIndex].Child1;
+                children[2] = parentChunkList[parentChunkIndex].Child2;
+                children[3] = parentChunkList[parentChunkIndex].Child3;
+                planet.RemoveMesh(children[0], childLevel);
+                planet.RemoveMesh(children[1], childLevel);
+                planet.RemoveMesh(children[2], childLevel);
+                planet.RemoveMesh(children[3], childLevel);
+
+                children[0] = parentChunkList[parentChunkIndex].Child0;
+                planet.RemoveChunkInfo(childLevel, children[0]);
+                children[1] = parentChunkList[parentChunkIndex].Child1;
+                planet.RemoveChunkInfo(childLevel, children[1]);
+                children[2] = parentChunkList[parentChunkIndex].Child2;
+                planet.RemoveChunkInfo(childLevel, children[2]);
+                children[3] = parentChunkList[parentChunkIndex].Child3;
+                planet.RemoveChunkInfo(childLevel, children[3]);
+                var info = parentChunkList[parentChunkIndex];
+
+                for (int j = 0; j < childChunkList.Length; j++)
+                {
+                    if (childChunkList[j].IsMesh)
+                    {
+                        var terrainMesh = planet.PlanetMeshes[childChunkList[j].MeshIndex];
+                        terrainMesh.TerrainChunkInfoIndex = j;
+                        planet.PlanetMeshes[childChunkList[j].MeshIndex] = terrainMesh;
+                    }
+                }
+                /*
+                inputDeps = new ConstructVerticesJob
+                {
+                    vertices = planet.Vertices,
+                    shapeGenerator = planet.ShapeGenerator,
+                    radius = planet.Radius,
+                    terrainChunkInfo = info
+                }.Schedule(planet.Vertices.Length, 1, inputDeps);
+                inputDeps.Complete();
+
+                planet.AddMesh(ref info, childLevel - 1, parentChunkIndex);
+                */
+                planet.GenerateMesh(ref info, childLevel - 1, parentChunkIndex);
+            }
         }
 
         private void ScanAndRemove(ref JobHandle inputDeps, Planet planet, int childLevel)
@@ -216,50 +326,18 @@ namespace Universe
             }.Schedule(planet.TerrainChunkInfos[childLevel - 1].Length, 1, inputDeps);
             inputDeps.Complete();
 
-            var childChunkList = planet.TerrainChunkInfos[childLevel];
-            var parentChunkList = planet.TerrainChunkInfos[childLevel - 1];
-            int[] children = new int[4];
-            while (_DestroyQueue.Count > 0)
-            {
-                int parentChunkIndex = _DestroyQueue.Dequeue();
-                children[0] = parentChunkList[parentChunkIndex].Child0;
-                children[1] = parentChunkList[parentChunkIndex].Child1;
-                children[2] = parentChunkList[parentChunkIndex].Child2;
-                children[3] = parentChunkList[parentChunkIndex].Child3;
-                planet.RemoveMesh(children[0], childLevel);
-                planet.RemoveMesh(children[1], childLevel);
-                planet.RemoveMesh(children[2], childLevel);
-                planet.RemoveMesh(children[3], childLevel);
 
-                children[0] = parentChunkList[parentChunkIndex].Child0;
-                planet.RemoveChunkInfo(childLevel, children[0]);
-                children[1] = parentChunkList[parentChunkIndex].Child1;
-                planet.RemoveChunkInfo(childLevel, children[1]);
-                children[2] = parentChunkList[parentChunkIndex].Child2;
-                planet.RemoveChunkInfo(childLevel, children[2]);
-                children[3] = parentChunkList[parentChunkIndex].Child3;
-                planet.RemoveChunkInfo(childLevel, children[3]);
-                var info = parentChunkList[parentChunkIndex];
 
-                for (int i = 0; i < childChunkList.Length; i++)
-                {
-                    if (childChunkList[i].IsMesh)
-                    {
-                        var terrainMesh = planet.PlanetMeshes[childChunkList[i].MeshIndex];
-                        terrainMesh.TerrainChunkInfoIndex = i;
-                        planet.PlanetMeshes[childChunkList[i].MeshIndex] = terrainMesh;
-                    }
-                }
-
-                planet.GenerateMesh(ref info, childLevel - 1, parentChunkIndex);
-
-            }
+            ContinueRemove(ref inputDeps, planet, childLevel);
         }
     }
     public class Planet
     {
+        private ShapeSettings _ShapeSettings;
+        private ShapeGenerator _ShapeGenerator;
         private Material _SurfaceMaterial;
         private int _Resolution;
+        private NativeArray<Vector3> _Vertices;
         private double _Radius;
         private double3 _Position;
         private float[] _RefreshTimeStep;
@@ -278,18 +356,24 @@ namespace Universe
         public double Radius { get => _Radius; set => _Radius = value; }
         public int Resolution { get => _Resolution; set => _Resolution = value; }
         public Material SurfaceMaterial { get => _SurfaceMaterial; set => _SurfaceMaterial = value; }
+        public ShapeSettings ShapeSettings { get => _ShapeSettings; set => _ShapeSettings = value; }
+        public ShapeGenerator ShapeGenerator { get => _ShapeGenerator; set => _ShapeGenerator = value; }
+        public NativeArray<Vector3> Vertices { get => _Vertices; set => _Vertices = value; }
 
-        public Planet(PlanetInfo planetInfo, int levelAmount, int resolution, Material surfaceMaterial)
+        public Planet(PlanetInfo planetInfo, int levelAmount, int resolution, Material surfaceMaterial, ShapeSettings shapeSettings)
         {
             _Radius = planetInfo.Radius;
             _Position = planetInfo.Position;
             _LevelAmount = levelAmount;
             _Resolution = resolution;
             _SurfaceMaterial = surfaceMaterial;
+            _ShapeSettings = shapeSettings;
         }
 
         public void Init()
         {
+            _Vertices = new NativeArray<Vector3>(_Resolution * _Resolution, Allocator.Persistent);
+            _ShapeGenerator = new ShapeGenerator(_ShapeSettings);
             _SharedTriangles = new int[_Resolution * _Resolution * 6];
             int triIndex = 0;
             for (int y = 0; y < _Resolution; y++)
@@ -338,6 +422,7 @@ namespace Universe
 
         public void ShutDown()
         {
+            if (_Vertices.IsCreated) _Vertices.Dispose();
             if (_TerrainChunkInfos != null)
             {
                 foreach (var i in _TerrainChunkInfos)
@@ -403,7 +488,7 @@ namespace Universe
 
         public void RemoveMesh(int childChunkIndex, int childLevel)
         {
-            int meshIndex = _TerrainChunkInfos[childLevel][childChunkIndex].MeshIndex; 
+            int meshIndex = _TerrainChunkInfos[childLevel][childChunkIndex].MeshIndex;
             m_PlanetMeshes.RemoveAtSwapBack(meshIndex);
             if (meshIndex < m_PlanetMeshes.Count)
             {
@@ -414,12 +499,29 @@ namespace Universe
             }
         }
 
+        public void AddMesh(ref TerrainChunkInfo terrainChunkInfo, int currentLevel, int chunkIndex)
+        {
+            Mesh mesh = new Mesh();
+            mesh.Clear();
+            mesh.vertices = _Vertices.ToArray();
+            mesh.triangles = _SharedTriangles;
+            mesh.RecalculateNormals();
+            terrainChunkInfo.MeshIndex = m_PlanetMeshes.Count;
+            m_PlanetMeshes.Add(new TerrainMesh
+            {
+                DetailLevel = currentLevel,
+                TerrainChunkInfoIndex = chunkIndex,
+                Mesh = mesh
+            });
+            _TerrainChunkInfos[currentLevel][chunkIndex] = terrainChunkInfo;
+        }
+
         public void GenerateMesh(ref TerrainChunkInfo terrainChunkInfo, int currentLevel, int chunkIndex)
         {
             terrainChunkInfo.IsMesh = true;
             Mesh mesh = new Mesh();
             Vector3[] vertices = new Vector3[_Resolution * _Resolution];
-            terrainChunkInfo.ConstructVertices(_Radius, ref vertices);
+            terrainChunkInfo.ConstructVertices(_ShapeGenerator, _Radius, ref vertices);
             mesh.Clear();
             mesh.vertices = vertices;
             mesh.triangles = _SharedTriangles;
@@ -483,6 +585,7 @@ namespace Universe
                 }
                 _TerrainChunkInfos[currentLevel][chunkIndex] = terrainChunkInfo;
                 return false;
+
             }
         }
     }

@@ -95,12 +95,13 @@ namespace Universe
             _InputSystem.StarCluster.BoxSelectionStart.performed += ctx => SelectionSystem.OnBoxSelectEnter(ctx);
             _InputSystem.StarCluster.BoxSelectionRelease.performed += ctx => SelectionSystem.OnBoxSelectRelease(ctx);
             _InputSystem.StarCluster.ToPlanetarySystem.performed += ctx => CentralSystem.StarClusterModeToPlanetarySystemMode(ctx);
-            _InputSystem.StarCluster.CameraRotateStart.performed += ctx => CentralSystem.OnStarClusterRotateCameraStart(ctx);
-            _InputSystem.StarCluster.CameraRotateRelease.performed += ctx => CentralSystem.OnStarClusterRotateCameraRelease(ctx);
+            _InputSystem.StarCluster.CameraRotateStart.performed += ctx => CentralSystem.OnRotateCameraStart(ctx);
+            _InputSystem.StarCluster.CameraRotateRelease.performed += ctx => CentralSystem.OnRotateCameraRelease(ctx);
             _InputSystem.StarCluster.FollowStar.performed += ctx => SelectionSystem.OnRaySelectEnter(ctx);
             //Planetary System
             _InputSystem.PlanetarySystem.Cancel.performed += ctx => CentralSystem.OnPlanetarySystemCancel(ctx);
-
+            _InputSystem.PlanetarySystem.CameraRotateStart.performed += ctx => CentralSystem.OnRotateCameraStart(ctx);
+            _InputSystem.PlanetarySystem.CameraRotateRelease.performed += ctx => CentralSystem.OnRotateCameraRelease(ctx);
             //Planet
         }
         #endregion
@@ -309,12 +310,12 @@ namespace Universe
         {
         }
 
-        public static void OnStarClusterRotateCameraStart(InputAction.CallbackContext ctx)
+        public static void OnRotateCameraStart(InputAction.CallbackContext ctx)
         {
             _IsRotatingCamera = true;
         }
 
-        public static void OnStarClusterRotateCameraRelease(InputAction.CallbackContext ctx)
+        public static void OnRotateCameraRelease(InputAction.CallbackContext ctx)
         {
             _IsRotatingCamera = false;
         }
@@ -328,6 +329,9 @@ namespace Universe
                 switch (ControlSystem.ControlMode) {
                     case ControlMode.StarCluster:
                         CameraModule.RotateCamera(ControlSystem.InputSystem.StarCluster.RotateCamera.ReadValue<Vector2>());
+                        break;
+                    case ControlMode.PlanetarySystem:
+                        CameraModule.RotateCamera(ControlSystem.InputSystem.PlanetarySystem.RotateCamera.ReadValue<Vector2>());
                         break;
                     default:
                         break;
@@ -592,7 +596,7 @@ namespace Universe
                 if (distanceFactor == 0) c3.Value = scaleFactor;
                 else
                 {
-                    c3.Value = Mathf.Lerp(scaleFactor, 100f / Vector3.Distance((float3)(position - floatingOrigin), Vector3.zero), distanceFactor);
+                    c3.Value = Mathf.Lerp(scaleFactor, 90000f / Vector3.Distance((float3)(position - floatingOrigin), Vector3.zero), distanceFactor);
                 }
             }
         }
@@ -611,11 +615,12 @@ namespace Universe
                 else if(!followingEntity.Equals(entity))
                 {
                     float fromDistance = Vector3.Distance(Vector3.zero, (float3)position);
-                    c0.Value = Vector3.Normalize((float3)position) * Mathf.Lerp(fromDistance, 100, distanceFactor);
+                    c0.Value = Vector3.Normalize((float3)position) * Mathf.Lerp(fromDistance, 90000, distanceFactor);
+
                 }
                 else
                 {
-                    c0.Value = new float3(1000000, 0, 0);
+                    c0.Value = new float3(10000000, 0, 0);
                     return;
                 }
                 var color = c2.Value;
@@ -634,8 +639,8 @@ namespace Universe
                 position -= floatingOrigin;
                 if (followingEntity.Equals(entity))
                 {
-                    c0.Value = new float3(1000000, 0, 0);
-                    c5.Value = 1;
+                    c0.Value = new float3(10000000, 0, 0);
+                    c5.Value = 0;
                     return;
                 }
                 else
@@ -645,7 +650,7 @@ namespace Universe
                 var color = c2.Value;
                 c3.Value = color * 3;
                 c4.Value = Quaternion.FromToRotation(Vector3.forward, (float3)position);
-                c5.Value = 10000f / Vector3.Distance((float3)position, Vector3.zero);
+                c5.Value = 90000f / Vector3.Distance((float3)position, Vector3.zero);
             }
         }
 
@@ -699,8 +704,8 @@ namespace Universe
                     }.Schedule(this, inputDeps);
                     CentralSystem.PlanetarySystem.Init();
                     PlanetarySystem.LoadPlanet(new PlanetInfo {
-                        Position = new double3(0, 0, 30000),
-                        Radius = 30000 }
+                        Position = new double3(0, 0, 90000),
+                        Radius = 10000 }
                     );
                     Enabled = false;
                 }

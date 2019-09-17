@@ -1,6 +1,9 @@
 ﻿
 using System.Collections;
 using System.Collections.Generic;
+using Unity.Burst;
+using Unity.Collections;
+using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
 
@@ -49,6 +52,8 @@ public struct TerrainChunkInfo
     public double3 AxisA { get => _AxisA; set => _AxisA = value; }
     public double3 AxisB { get => _AxisB; set => _AxisB = value; }
     public bool TooFar { get => _TooFar; set => _TooFar = value; }
+    public int Resolution { get => _Resolution; set => _Resolution = value; }
+
     public double3 ChunkCenterPosition(double3 planetPosition, double radius)
     {
         int actualDetailLevel = (int)math.pow(2, _DetailLevel);
@@ -89,20 +94,21 @@ public struct TerrainChunkInfo
         d3 /= math.sqrt(x * x + y * y + z * z);
     }
 
-    public void ConstructVertices(double radius, ref Vector3[] vertices)
+    public void ConstructVertices(ShapeGenerator shapeGenerator, double radius, ref Vector3[] vertices)
     {
-        Debug.Assert(_IsMesh);
         int actualDetailLevel = (int)math.pow(2, _DetailLevel);
-        for (int y = 0; y < _Resolution; y++)
+        for (int y = 0; y < Resolution; y++)
         {
-            for (int x = 0; x < _Resolution; x++)
+            for (int x = 0; x < Resolution; x++)
             {
-                int i = x + y * _Resolution;
-                double2 percent = new double2(x, y) / (_Resolution - 1) / actualDetailLevel;
+                int i = x + y * Resolution;
+                double2 percent = new double2(x, y) / (Resolution - 1) / actualDetailLevel;
                 double3 pointOnUnitCube = _LocalUp + (percent.x + (double)_ChunkCoordinate.x / actualDetailLevel - .5D) * 2 * _AxisA + (percent.y + (double)_ChunkCoordinate.y / actualDetailLevel - .5D) * 2 * _AxisB;
                 Normalize(ref pointOnUnitCube);
-                vertices[i] = (float3)(pointOnUnitCube * radius);
+                vertices[i] = (float3)(radius * shapeGenerator.CalculatePointOnPlanet(pointOnUnitCube));
             }
         }
     }
+    
+
 }
