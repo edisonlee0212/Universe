@@ -12,5 +12,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dead050c2acb96e458a64ca6185ef4fe, type: 3}
   m_Name: Camera Module
   m_EditorClassIdentifier: Assembly-CSharp:Universe:CameraModule
-  m_MainCameraPrefab: {fileID: 5459686896243340273, guid: 91d956b1783dbcb44b1cc2640919c3a1,
+  m_CameraPrefab: {fileID: 5628773185398663992, guid: 51584f5d7ea99b6448619bf6cf2cf9bc,
     type: 3}

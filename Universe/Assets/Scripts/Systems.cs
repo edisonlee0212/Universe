@@ -705,7 +705,7 @@ namespace Universe
                     CentralSystem.PlanetarySystem.Init();
                     PlanetarySystem.LoadPlanet(new PlanetInfo {
                         Position = new double3(0, 0, 90000),
-                        Radius = 10000 }
+                        Radius = 60000 }
                     );
                     Enabled = false;
                 }

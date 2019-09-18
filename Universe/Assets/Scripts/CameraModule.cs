@@ -6,22 +6,22 @@ namespace Universe {
     {
         #region Private
         [SerializeField]
-        private Camera m_MainCameraPrefab = null;
+        private GameObject m_CameraPrefab = null;
         private static float _X, _Y;
         #endregion
 
         #region Public
-        private static Camera m_MainCamera;
+        private static GameObject m_MainCamera;
         private static Transform m_MainCameraTransform;
 
-        public static Camera MainCamera { get => m_MainCamera; set => m_MainCamera = value; }
+        public static GameObject Camera { get => m_MainCamera; set => m_MainCamera = value; }
         public static Transform MainCameraTransform { get => m_MainCameraTransform; set => m_MainCameraTransform = value; }
         #endregion
 
         #region Managers
         public void Init()
         {
-            m_MainCamera = Instantiate(m_MainCameraPrefab);
+            m_MainCamera = Instantiate(m_CameraPrefab);
             m_MainCameraTransform = m_MainCamera.transform;
         }
 
