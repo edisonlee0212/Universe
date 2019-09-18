@@ -704,8 +704,42 @@ namespace Universe
                     }.Schedule(this, inputDeps);
                     CentralSystem.PlanetarySystem.Init();
                     PlanetarySystem.LoadPlanet(new PlanetInfo {
-                        Position = new double3(0, 0, 90000),
-                        Radius = 60000 }
+                        Position = new double3(0, 0, 800000),
+                        Radius = 600000,
+                        PlanetType = PlanetType.Solar
+                    }
+                    );
+
+                    PlanetarySystem.LoadPlanet(new PlanetInfo
+                    {
+                        Position = new double3(0, 0, 100000),
+                        Radius = 60000,
+                        PlanetType = PlanetType.Planet
+                    }
+                    );
+
+                    PlanetarySystem.LoadPlanet(new PlanetInfo
+                    {
+                        Position = new double3(0, 0, 900000),
+                        Radius = 60000,
+                        PlanetType = PlanetType.Planet
+                    }
+                    );
+
+                    PlanetarySystem.LoadPlanet(new PlanetInfo
+                    {
+                        Position = new double3(900000, 0, 800000),
+                        Radius = 60000,
+                        PlanetType = PlanetType.Planet
+                    }
+                    );
+
+                    PlanetarySystem.LoadPlanet(new PlanetInfo
+                    {
+                        Position = new double3(-900000, 0, 800000),
+                        Radius = 60000,
+                        PlanetType = PlanetType.Planet
+                    }
                     );
                     Enabled = false;
                 }

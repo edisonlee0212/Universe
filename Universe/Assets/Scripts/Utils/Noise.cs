@@ -28,7 +28,7 @@ Some changes by Sebastian Lague for use in a tutorial series.
 using System;
 using Unity.Mathematics;
 
-public class Noise
+public unsafe struct Noise
 {
     #region Values
     /// Initial permutation table
@@ -50,8 +50,8 @@ public class Noise
     const int RandomSize = 256;
     const double Sqrt3 = 1.7320508075688772935;
     const double Sqrt5 = 2.2360679774997896964;
-    int[] _random;
-
+    fixed int _random[2 * RandomSize];
+    
     /// Skewing and unskewing factors for 2D, 3D and 4D, 
     /// some of them pre-multiplied.
     const double F2 = 0.5 * (Sqrt3 - 1.0);
@@ -81,14 +81,33 @@ public class Noise
     };
     #endregion
 
-    public Noise()
-    {
-        Randomize(0);
-    }
-
     public Noise(int seed)
     {
-        Randomize(seed);
+        if (seed != 0)
+        {
+            // Shuffle the array using the given seed
+            // Unpack the seed into 4 bytes then perform a bitwise XOR operation
+            // with each byte
+            var F = new byte[4];
+            UnpackLittleUint32(seed, ref F);
+
+            for (int i = 0; i < Source.Length; i++)
+            {
+                _random[i] = Source[i] ^ F[0];
+                _random[i] ^= F[1];
+                _random[i] ^= F[2];
+                _random[i] ^= F[3];
+
+                _random[i + RandomSize] = _random[i];
+            }
+
+        }
+        else
+        {
+            for (int i = 0; i < RandomSize; i++)
+                _random[i + RandomSize] = _random[i] = Source[i];
+        }
+
     }
 
 
@@ -256,37 +275,6 @@ public class Noise
         // Add contributions from each corner to get the final noise value.
         // The result is scaled to stay just inside [-1,1]
         return (n0 + n1 + n2 + n3) * 32;
-    }
-
-
-    void Randomize(int seed)
-    {
-        _random = new int[RandomSize * 2];
-
-        if (seed != 0)
-        {
-            // Shuffle the array using the given seed
-            // Unpack the seed into 4 bytes then perform a bitwise XOR operation
-            // with each byte
-            var F = new byte[4];
-            UnpackLittleUint32(seed, ref F);
-
-            for (int i = 0; i < Source.Length; i++)
-            {
-                _random[i] = Source[i] ^ F[0];
-                _random[i] ^= F[1];
-                _random[i] ^= F[2];
-                _random[i] ^= F[3];
-
-                _random[i + RandomSize] = _random[i];
-            }
-
-        }
-        else
-        {
-            for (int i = 0; i < RandomSize; i++)
-                _random[i + RandomSize] = _random[i] = Source[i];
-        }
     }
 
     static double Dot(int[] g, double x, double y, double z, double t)
