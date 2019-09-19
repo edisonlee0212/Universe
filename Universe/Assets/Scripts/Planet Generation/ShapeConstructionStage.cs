@@ -7,9 +7,9 @@ namespace Universe
 {
     public enum ShapeConstructionStageType
     {
-
         SimpleNoiseFilter,
-        RidgidNoiseFilter
+        AmplifiedNoiseFilter,
+        SeaLevel,
     }
 
     public struct ShapeConstructionStage
@@ -22,29 +22,35 @@ namespace Universe
         public double persistence;
         public double3 center;
         public double minValue;
-        public float weightMultiplier;
-        public double Process(double3 pointOnUnitSphere, double previousElevation, ref Noise noise)
+        public double weightMultiplier;
+        public double Process(double3 pointOnUnitSphere, ref Noise noise, double previousResult, double previousElevation)
         {
-            double elevation;
+            double result;
             switch (stageType)
             {
-                case ShapeConstructionStageType.SimpleNoiseFilter:
-                    elevation = SimpleNoiseFilterProcess(pointOnUnitSphere, previousElevation, ref noise);
+                case ShapeConstructionStageType.SeaLevel:
+                    result = SeaLevelProcess(pointOnUnitSphere, previousElevation);
                     break;
-                case ShapeConstructionStageType.RidgidNoiseFilter:
-                    elevation = RidgidNoiseFilterProcess(pointOnUnitSphere, previousElevation, ref noise);
+                case ShapeConstructionStageType.SimpleNoiseFilter:
+                    result = SimpleNoiseFilterProcess(pointOnUnitSphere, ref noise);
+                    break;
+                case ShapeConstructionStageType.AmplifiedNoiseFilter:
+                    result = AmplifiedNoiseFilterProcess(pointOnUnitSphere, ref noise, previousResult);
                     break;
                 default:
-                    elevation = previousElevation;
+                    result = 0;
                     break;
             }
-            return elevation;
+            return result;
         }
 
-        public double SimpleNoiseFilterProcess(double3 point, double previousElevation, ref Noise noise)
+        public double SeaLevelProcess(double3 point, double previousElevation)
         {
-            double elevation = previousElevation;
+            return math.max(minValue, previousElevation) - previousElevation;
+        }
 
+        public double SimpleNoiseFilterProcess(double3 point, ref Noise noise)
+        {
             double noiseValue = 0;
             double frequency = baseRoughness;
             double amplitude = 1;
@@ -57,37 +63,30 @@ namespace Universe
                 amplitude *= persistence;
             }
 
-            noiseValue = math.max(0, noiseValue - minValue);
-            elevation += noiseValue * strength;
-
-            return elevation;
+            return (noiseValue - 1) * strength;
         }
 
-        public double RidgidNoiseFilterProcess(double3 point, double previousElevation, ref Noise noise)
+        public double AmplifiedNoiseFilterProcess(double3 point, ref Noise noise, double previousResult)
         {
-            double elevation = previousElevation;
-
             double noiseValue = 0;
             double frequency = baseRoughness;
             double amplitude = 1;
-            double weight = 1;
 
             for (int i = 0; i < numLayers; i++)
             {
-                double v = 1 - math.abs(noise.Evaluate(point * frequency + center));
-                v *= v;
-                v *= weight;
-                weight = math.clamp(v * weightMultiplier, 0, 1);
-
-                noiseValue += v * amplitude;
+                double v = noise.Evaluate(point * frequency + center);
+                noiseValue += (v + 1) * .5f * amplitude;
                 frequency *= roughness;
                 amplitude *= persistence;
             }
 
-            noiseValue = math.max(0, noiseValue - minValue);
-            elevation += noiseValue * strength;
+            noiseValue *= math.max(0, previousResult + 1);
 
-            return elevation;
+            noiseValue = math.max(0, noiseValue - minValue);
+
+
+            return noiseValue - previousResult;
         }
+
     }
 }
