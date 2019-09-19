@@ -9,14 +9,16 @@ using UnityEngine;
 
 namespace Universe
 {
-    public struct TerrainMesh
+    public class TerrainMesh
     {
+        private bool _Enable;
         private Mesh _Mesh;
         private int _DetailLevel;
         private int _TerrainChunkInfoIndex;
         public Mesh Mesh { get => _Mesh; set => _Mesh = value; }
         public int DetailLevel { get => _DetailLevel; set => _DetailLevel = value; }
         public int TerrainChunkInfoIndex { get => _TerrainChunkInfoIndex; set => _TerrainChunkInfoIndex = value; }
+        public bool Enable { get => _Enable; set => _Enable = value; }
     }
 
     public struct TerrainChunkInfo

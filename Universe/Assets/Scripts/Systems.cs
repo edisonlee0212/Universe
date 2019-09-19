@@ -207,7 +207,7 @@ namespace Universe
                 Index = new StarClusterIndex { Value = 0 },
                 YSpread = 0.05D,
                 XZSpread = 0.015D,
-                DiskAB = 3000D,
+                DiskAB = 30D,
                 DiskEccentricity = 0.5D,
                 CoreProportion = 0.4D,
                 CoreEccentricity = 0.8D,
@@ -235,7 +235,7 @@ namespace Universe
             _CurrentStarRenderContent.MeshMaterial.Material = m_RenderMeshResources.Materials[0];
             _CurrentStarRenderContent.MeshMaterial.Mesh = m_RenderMeshResources.Meshes[0];
 
-            for (int i = 0; i < 6000; i++)
+            for (int i = 0; i < 60; i++)
             {
                 var value = Random.Next();
                 var proportion = new StarOrbitProportion { Value = System.Math.Sqrt(value) };
@@ -703,12 +703,12 @@ namespace Universe
                         floatingOrigin = _FloatingOrigin,
                     }.Schedule(this, inputDeps);
                     CentralSystem.PlanetarySystem.Init();
-                    PlanetarySystem.LoadPlanet(new PlanetInfo {
+                    /*PlanetarySystem.LoadPlanet(new PlanetInfo {
                         Position = new double3(0, 0, 800000),
                         Radius = 600000,
                         PlanetType = PlanetType.Solar
                     }
-                    );
+                    );*/
 
                     PlanetarySystem.LoadPlanet(new PlanetInfo
                     {
