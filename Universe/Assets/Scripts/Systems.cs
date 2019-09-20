@@ -130,7 +130,7 @@ namespace Universe
         private static StarDisplayColorSystem m_StarDisplayColorSystem;
         private static MeshRenderSystem m_RenderSystem;
         private static CopyStarColorSystem m_CopyStarColorSystem;
-        private static PlanetarySystem m_PlanetarySystem;
+        private static PlanetarySystemRenderSystem m_PlanetarySystem;
         #endregion
         #endregion
 
@@ -151,7 +151,7 @@ namespace Universe
         }
         private static SwitchingModeInfo _SwitchingModeInfo;
         private static bool _IsRunning, _IsSwitching, _IsRotatingCamera;
-
+        private static float _FixedUpdateTimer;
         private static float _SystemTime;
         public static float SystemTime { get => _SystemTime; set => _SystemTime = value; }
         public static SwitchingModeInfo SwitchingMode { get => _SwitchingModeInfo; set => _SwitchingModeInfo = value; }
@@ -159,7 +159,7 @@ namespace Universe
         public static RenderContent CurrentStarRenderContent { get => _CurrentStarRenderContent; set => _CurrentStarRenderContent = value; }
         public static WorldSystem WorldSystem { get => m_WorldSystem; set => m_WorldSystem = value; }
         public static StarTransformSystem StarTransformSystem { get => m_StarTransformSystem; set => m_StarTransformSystem = value; }
-        public static PlanetarySystem PlanetarySystem { get => m_PlanetarySystem; set => m_PlanetarySystem = value; }
+        public static PlanetarySystemRenderSystem PlanetarySystem { get => m_PlanetarySystem; set => m_PlanetarySystem = value; }
         public static SelectionSystem SelectionSystem { get => m_SelectionSystem; set => m_SelectionSystem = value; }
         public static MeshRenderSystem RenderSystem { get => m_RenderSystem; set => m_RenderSystem = value; }
         public static CopyStarColorSystem CopyStarColorSystem { get => m_CopyStarColorSystem; set => m_CopyStarColorSystem = value; }
@@ -168,6 +168,7 @@ namespace Universe
         public static CameraModule CameraModule { get => m_CameraModule; set => m_CameraModule = value; }
         public static bool IsRotatingCamera { get => _IsRotatingCamera; set => _IsRotatingCamera = value; }
         public static bool IsRunning { get => _IsRunning; set => _IsRunning = value; }
+        public static float FixedUpdateTimer { get => _FixedUpdateTimer; set => _FixedUpdateTimer = value; }
         #endregion
 
         #region Managers
@@ -190,7 +191,7 @@ namespace Universe
             m_RenderSystem = World.Active.GetOrCreateSystem<MeshRenderSystem>();
             m_StarDisplayColorSystem = World.Active.GetOrCreateSystem<StarDisplayColorSystem>();
             m_CopyStarColorSystem = World.Active.GetOrCreateSystem<CopyStarColorSystem>();
-            m_PlanetarySystem = World.Active.GetOrCreateSystem<PlanetarySystem>();
+            m_PlanetarySystem = World.Active.GetOrCreateSystem<PlanetarySystemRenderSystem>();
 
             m_WorldSystem.Init();
             m_StarTransformSystem.Init();
@@ -321,9 +322,20 @@ namespace Universe
         }
         #endregion
 
+        protected void OnFixedUpdate(ref JobHandle inputDeps)
+        {
+            m_PlanetarySystem.OnFixedUpdate(ref inputDeps);
+        }
+
         protected override JobHandle OnUpdate(JobHandle inputDeps)
         {
             _SystemTime += Time.deltaTime;
+            _FixedUpdateTimer += Time.deltaTime;
+            if(_FixedUpdateTimer > 0.1)
+            {
+                OnFixedUpdate(ref inputDeps);
+            }
+
             if (_IsRotatingCamera)
             {
                 switch (ControlSystem.ControlMode) {
@@ -710,7 +722,7 @@ namespace Universe
                     }
                     );*/
 
-                    PlanetarySystem.LoadPlanet(new PlanetInfo
+                    PlanetarySystemRenderSystem.LoadPlanet(new PlanetInfo
                     {
                         Position = new double3(0, 0, 100000),
                         Radius = 60000,
@@ -718,7 +730,7 @@ namespace Universe
                     }
                     );
 
-                    PlanetarySystem.LoadPlanet(new PlanetInfo
+                    PlanetarySystemRenderSystem.LoadPlanet(new PlanetInfo
                     {
                         Position = new double3(0, 0, 900000),
                         Radius = 60000,
@@ -726,7 +738,7 @@ namespace Universe
                     }
                     );
 
-                    PlanetarySystem.LoadPlanet(new PlanetInfo
+                    PlanetarySystemRenderSystem.LoadPlanet(new PlanetInfo
                     {
                         Position = new double3(900000, 0, 800000),
                         Radius = 60000,
@@ -734,7 +746,7 @@ namespace Universe
                     }
                     );
 
-                    PlanetarySystem.LoadPlanet(new PlanetInfo
+                    PlanetarySystemRenderSystem.LoadPlanet(new PlanetInfo
                     {
                         Position = new double3(-900000, 0, 800000),
                         Radius = 60000,

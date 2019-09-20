@@ -58,14 +58,53 @@ namespace Universe
         public bool TooFar { get => _TooFar; set => _TooFar = value; }
         public int Resolution { get => _Resolution; set => _Resolution = value; }
 
-        public double3 ChunkCenterPosition(double3 planetPosition, double radius)
+        public double3 ChunkCenterPosition(double3 planetPosition, double radius, Quaternion rotation)
         {
             int actualDetailLevel = (int)math.pow(2, _DetailLevel);
             double2 percent = new double2(0.5, 0.5) / actualDetailLevel;
-            double3 pointOnUnitCube = _LocalUp + (percent.x + (double)_ChunkCoordinate.x / actualDetailLevel - 0.5d) * 2 * _AxisA + (percent.y + (double)_ChunkCoordinate.y / actualDetailLevel - 0.5d) * 2 * _AxisB;
-            Normalize(ref pointOnUnitCube);
-            double3 ret = pointOnUnitCube * radius + planetPosition;
+            double3 point = _LocalUp + (percent.x + (double)_ChunkCoordinate.x / actualDetailLevel - 0.5d) * 2 * _AxisA + (percent.y + (double)_ChunkCoordinate.y / actualDetailLevel - 0.5d) * 2 * _AxisB;
+            double x = rotation.x * 2F;
+            double y = rotation.y * 2F;
+            double z = rotation.z * 2F;
+            double xx = rotation.x * x;
+            double yy = rotation.y * y;
+            double zz = rotation.z * z;
+            double xy = rotation.x * y;
+            double xz = rotation.x * z;
+            double yz = rotation.y * z;
+            double wx = rotation.w * x;
+            double wy = rotation.w * y;
+            double wz = rotation.w * z;
+
+            double3 res;
+            res.x = (1F - (yy + zz)) * point.x + (xy - wz) * point.y + (xz + wy) * point.z;
+            res.y = (xy + wz) * point.x + (1F - (xx + zz)) * point.y + (yz - wx) * point.z;
+            res.z = (xz - wy) * point.x + (yz + wx) * point.y + (1F - (xx + yy)) * point.z;
+            Normalize(ref res);
+            double3 ret = res * radius + planetPosition;
             return ret;
+        }
+
+        private double3 dot(Quaternion rotation, double3 point)
+        {
+            double x = rotation.x * 2F;
+            double y = rotation.y * 2F;
+            double z = rotation.z * 2F;
+            double xx = rotation.x * x;
+            double yy = rotation.y * y;
+            double zz = rotation.z * z;
+            double xy = rotation.x * y;
+            double xz = rotation.x * z;
+            double yz = rotation.y * z;
+            double wx = rotation.w * x;
+            double wy = rotation.w * y;
+            double wz = rotation.w * z;
+
+            double3 res;
+            res.x = (1F - (yy + zz)) * point.x + (xy - wz) * point.y + (xz + wy) * point.z;
+            res.y = (xy + wz) * point.x + (1F - (xx + zz)) * point.y + (yz - wx) * point.z;
+            res.z = (xz - wy) * point.x + (yz + wx) * point.y + (1F - (xx + yy)) * point.z;
+            return res;
         }
 
         public TerrainChunkInfo(int parentIndex, int detailLevel, int2 chunkCoordinate, bool isLeft, bool isUp, double3 localUp, int resolution)
