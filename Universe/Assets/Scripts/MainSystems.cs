@@ -120,7 +120,7 @@ namespace Universe
         #region Non-ECS
         private static ControlSystem m_ControlSystem;
         private static CameraModule m_CameraModule;
-        
+        private static DataSystem m_DataSystem;
         #endregion
         #region ECS
         private static WorldSystem m_WorldSystem;
@@ -153,6 +153,7 @@ namespace Universe
         private static bool _IsRunning, _IsSwitching, _IsRotatingCamera;
         private static float _FixedUpdateTimer;
         private static float _SystemTime;
+        private static int _TurnCount;
         public static float SystemTime { get => _SystemTime; set => _SystemTime = value; }
         public static SwitchingModeInfo SwitchingMode { get => _SwitchingModeInfo; set => _SwitchingModeInfo = value; }
         public static bool IsSwitching { get => _IsSwitching; set => _IsSwitching = value; }
@@ -170,6 +171,8 @@ namespace Universe
         public static bool IsRunning { get => _IsRunning; set => _IsRunning = value; }
         public static float FixedUpdateTimer { get => _FixedUpdateTimer; set => _FixedUpdateTimer = value; }
         public static PlanetarySystemSimulationSystem PlanetarySystemSimulationSystem { get => m_PlanetarySystemSimulationSystem; set => m_PlanetarySystemSimulationSystem = value; }
+        public static DataSystem DataSystem { get => m_DataSystem; set => m_DataSystem = value; }
+        public static int TurnCount { get => _TurnCount; set => _TurnCount = value; }
         #endregion
 
         #region Managers
@@ -194,6 +197,7 @@ namespace Universe
             m_CopyStarColorSystem = World.Active.GetOrCreateSystem<CopyStarColorSystem>();
             m_PlanetarySystemRenderSystem = World.Active.GetOrCreateSystem<PlanetarySystemRenderSystem>();
             m_PlanetarySystemSimulationSystem = World.Active.GetOrCreateSystem<PlanetarySystemSimulationSystem>();
+            m_DataSystem = new DataSystem();
             m_WorldSystem.Init();
             m_StarTransformSystem.Init();
             m_SelectionSystem.Init();
@@ -325,9 +329,25 @@ namespace Universe
         }
         #endregion
 
-        protected void OnFixedUpdate(ref JobHandle inputDeps)
+        protected JobHandle OnFixedUpdate(JobHandle inputDeps)
         {
-            m_PlanetarySystemRenderSystem.OnFixedUpdate(ref inputDeps);
+            inputDeps = m_PlanetarySystemRenderSystem.OnFixedUpdate(inputDeps);
+            
+
+            return inputDeps;
+        }
+
+        protected JobHandle OnEnterNextTurn(JobHandle inputDeps)
+        {
+            _TurnCount++;
+            inputDeps = m_DataSystem.OnEnterNextTurn(this, inputDeps, _TurnCount);
+            return inputDeps;
+        }
+
+        protected JobHandle OnExitNextTurn(JobHandle inputDeps)
+        {
+            inputDeps = m_DataSystem.OnExitNextTurn(this, inputDeps, _TurnCount);
+            return inputDeps;
         }
 
         protected override JobHandle OnUpdate(JobHandle inputDeps)
@@ -336,21 +356,17 @@ namespace Universe
             _FixedUpdateTimer += Time.deltaTime;
             if(_FixedUpdateTimer > 0.1)
             {
-                OnFixedUpdate(ref inputDeps);
+                inputDeps = OnFixedUpdate(inputDeps);
+                inputDeps = OnEnterNextTurn(inputDeps);
+                inputDeps = OnExitNextTurn(inputDeps);
+                _FixedUpdateTimer = 0;
             }
+
+            
 
             if (_IsRotatingCamera)
             {
-                switch (ControlSystem.ControlMode) {
-                    case ControlMode.StarCluster:
-                        CameraModule.RotateCamera(ControlSystem.InputSystem.StarCluster.RotateCamera.ReadValue<Vector2>());
-                        break;
-                    case ControlMode.PlanetarySystem:
-                        CameraModule.RotateCamera(ControlSystem.InputSystem.PlanetarySystem.RotateCamera.ReadValue<Vector2>());
-                        break;
-                    default:
-                        break;
-                } 
+                m_CameraModule.Update();
             }
             if (_IsSwitching)
             {
@@ -428,7 +444,8 @@ namespace Universe
                 typeof(SelectionStatus),
                 typeof(StarOrbit),
                 typeof(StarClusterIndex),
-                typeof(RenderContent)
+                typeof(RenderContent),
+                typeof(EnergyData)
                 );
         }
         public void Init()
@@ -513,6 +530,7 @@ namespace Universe
             OriginalColor originalColor = default;
             originalColor.Value = new Color(Random.Next(), Random.Next(), Random.Next(), 1);
             EntityManager.SetComponentData(instance, originalColor);
+            EntityManager.SetComponentData(instance, new EnergyData { TotalEnergy = 600000000000, ReleaseSpeed = 1 });
             _StarAmount++;
         }
 

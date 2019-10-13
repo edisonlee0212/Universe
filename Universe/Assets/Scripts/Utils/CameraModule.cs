@@ -50,5 +50,20 @@ namespace Universe {
             return Mathf.Clamp(angle, min, max);
         }
         #endregion
+
+        public void Update()
+        {
+            switch (ControlSystem.ControlMode)
+            {
+                case ControlMode.StarCluster:
+                    RotateCamera(ControlSystem.InputSystem.StarCluster.RotateCamera.ReadValue<Vector2>());
+                    break;
+                case ControlMode.PlanetarySystem:
+                    RotateCamera(ControlSystem.InputSystem.PlanetarySystem.RotateCamera.ReadValue<Vector2>());
+                    break;
+                default:
+                    break;
+            }
+        }
     }
 }

@@ -26,505 +26,6 @@ namespace Universe
         public bool enabled;
     }
 
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
-    public class PlanetarySystemSimulationSystem : JobComponentSystem
-    {
-        #region Private
-        #endregion
-
-        #region Public
-        private static List<Planet> _Planets;
-        public static List<Planet> Planets { get => _Planets; set => _Planets = value; }
-
-        #endregion
-
-        #region Managers
-        protected override void OnCreate()
-        {
-            Enabled = false;
-            _Planets = new List<Planet>();
-        }
-
-        public void Init()
-        {
-            ShutDown();
-            Enabled = true;
-        }
-
-        public void ShutDown()
-        {
-            Enabled = false;
-        }
-
-        protected override void OnDestroy()
-        {
-            ShutDown();
-        }
-
-        #endregion
-
-        #region Methods
-        public static int LoadPlanet(PlanetInfo planetInfo)
-        {
-            PlanetarySystemRenderSystem.LastChildLevelList.Add(0);
-            PlanetarySystemRenderSystem.CreateQueueList.Add(new NativeQueue<int>(Allocator.Persistent));
-            PlanetarySystemRenderSystem.DestroyQueueList.Add(new NativeQueue<int>(Allocator.Persistent));
-            PlanetarySystemRenderSystem.GenerateMeshQueueList.Add(new NativeQueue<MeshInfo>(Allocator.Persistent));
-            PlanetarySystemRenderSystem.RemoveMeshQueueList.Add(null);
-
-            var planet = new Planet(planetInfo, maxLodLevel: 15, resolution: 64, new Material(Shader.Find("Standard")), Quaternion.identity, PlanetarySystemRenderSystem.GenerateMeshQueueList[_Planets.Count], _Planets.Count);
-
-            _Planets.Add(planet);
-           
-            return _Planets.Count - 1;
-        }
-
-        public static bool UnLoadPlanet(int index)
-        {
-            Debug.Assert(index >= 0 && index < _Planets.Count);
-            _Planets[index].ShutDown();
-            if (PlanetarySystemRenderSystem.GenerateMeshQueueList[index].IsCreated) PlanetarySystemRenderSystem.GenerateMeshQueueList[index].Dispose();
-            PlanetarySystemRenderSystem.GenerateMeshQueueList.RemoveAtSwapBack(index);
-            PlanetarySystemRenderSystem.RemoveMeshQueueList.RemoveAtSwapBack(index);
-            _Planets.RemoveAtSwapBack(index);
-            PlanetarySystemRenderSystem.LastChildLevelList.RemoveAtSwapBack(index);
-            if (PlanetarySystemRenderSystem.CreateQueueList[index].IsCreated) PlanetarySystemRenderSystem.CreateQueueList[index].Dispose();
-            PlanetarySystemRenderSystem.CreateQueueList.RemoveAtSwapBack(index);
-            if (PlanetarySystemRenderSystem.DestroyQueueList[index].IsCreated) PlanetarySystemRenderSystem.DestroyQueueList[index].Dispose();
-            PlanetarySystemRenderSystem.DestroyQueueList.RemoveAtSwapBack(index);
-            if (index < _Planets.Count) _Planets[index].Index = index;
-            return true;
-        }
-
-        public static void Clear()
-        {
-            if (_Planets != null && _Planets.Count != 0)
-            {
-                while (_Planets.Count != 0)
-                {
-                    UnLoadPlanet(0);
-                }
-            }
-        }
-        #endregion
-
-        #region Jobs
-        #endregion
-
-        protected override JobHandle OnUpdate(JobHandle inputDeps)
-        {
-            return inputDeps;
-        }
-    }
-
-    [UpdateInGroup(typeof(PresentationSystemGroup))]
-    public class PlanetarySystemRenderSystem : JobComponentSystem
-    {
-        #region Private
-        
-        private Light _SolarLight;
-        #endregion
-
-        #region Public
-        private static double3 _FloatingOrigin;
-        private static int _LodDistance;
-        private static int _Counter;
-        private static float _Timer;
-        private static List<NativeQueue<int>> _DestroyQueueList;
-        private static List<NativeQueue<int>> _CreateQueueList;
-        private static List<NativeQueue<MeshInfo>> _GenerateMeshQueueList;
-        private static List<TerrainMesh[]> _RemoveMeshQueueList;
-        private static List<int> _LastChildLevelList;
-        public static int LodDistance { get => _LodDistance; set => _LodDistance = value; }
-        public static double3 FloatingOrigin { get => _FloatingOrigin; set => _FloatingOrigin = value; }
-        public static List<NativeQueue<int>> DestroyQueueList { get => _DestroyQueueList; set => _DestroyQueueList = value; }
-        public static List<NativeQueue<int>> CreateQueueList { get => _CreateQueueList; set => _CreateQueueList = value; }
-        public static List<NativeQueue<MeshInfo>> GenerateMeshQueueList { get => _GenerateMeshQueueList; set => _GenerateMeshQueueList = value; }
-        public static List<TerrainMesh[]> RemoveMeshQueueList { get => _RemoveMeshQueueList; set => _RemoveMeshQueueList = value; }
-        public static List<int> LastChildLevelList { get => _LastChildLevelList; set => _LastChildLevelList = value; }
-        #endregion
-
-        #region Managers
-        protected override void OnCreate()
-        {
-            Enabled = false;
-            _LodDistance = 8;
-            FloatingOrigin = double3.zero;
-            GenerateMeshQueueList = new List<NativeQueue<MeshInfo>>();
-            RemoveMeshQueueList = new List<TerrainMesh[]>();
-            DestroyQueueList = new List<NativeQueue<int>>();
-            CreateQueueList = new List<NativeQueue<int>>();
-            LastChildLevelList = new List<int>();
-        }
-
-        public void Init()
-        {
-            ShutDown();
-            Enabled = true;
-            Clear();
-        }
-
-        public void ShutDown()
-        {
-            Enabled = false;
-        }
-        protected override void OnDestroy()
-        {
-            ShutDown();
-            if (GenerateMeshQueueList != null)
-            {
-                foreach (var i in GenerateMeshQueueList)
-                {
-                    if (i.IsCreated) i.Dispose();
-                }
-                GenerateMeshQueueList = null;
-            }
-
-            if (DestroyQueueList != null)
-            {
-                foreach (var i in DestroyQueueList)
-                {
-                    if (i.IsCreated) i.Dispose();
-                }
-                DestroyQueueList = null;
-            }
-
-            if (CreateQueueList != null)
-            {
-                foreach (var i in CreateQueueList)
-                {
-                    if (i.IsCreated) i.Dispose();
-                }
-                CreateQueueList = null;
-            }
-            RemoveMeshQueueList = null;
-            LastChildLevelList = null;
-        }
-        #endregion
-
-        #region Methods
-        public void Clear()
-        {
-            if (GenerateMeshQueueList != null)
-            {
-                foreach (var i in GenerateMeshQueueList)
-                {
-                    if (i.IsCreated) i.Dispose();
-                }
-            }
-
-            if (DestroyQueueList != null)
-            {
-                foreach (var i in DestroyQueueList)
-                {
-                    if (i.IsCreated) i.Dispose();
-                }
-            }
-
-            if (CreateQueueList != null)
-            {
-                foreach (var i in CreateQueueList)
-                {
-                    if (i.IsCreated) i.Dispose();
-                }
-            }
-            RemoveMeshQueueList.Clear();
-            LastChildLevelList.Clear();
-        }
-        #endregion
-
-        #region Jobs
-
-        [BurstCompile]
-        protected struct EvaluateDistance : IJobParallelFor
-        {
-            public int currentLevel;
-            public double3 centerPosition;
-            public double3 floatingOrigin;
-            public double radius;
-            public Quaternion rotation;
-            public int lodDistance;
-            [NativeDisableParallelForRestriction]
-            public NativeArray<TerrainChunkInfo> targetTerrainChunkInfos;
-            public void Execute(int index)
-            {
-                var info = targetTerrainChunkInfos[index];
-                if (info.IsMesh && Vector3.Distance((float3)info.ChunkCenterPosition(centerPosition, radius, rotation), (float3)floatingOrigin) > (lodDistance * radius / Mathf.Pow(2, currentLevel + 1)))
-                {
-                    info.TooFar = true;
-                    targetTerrainChunkInfos[index] = info;
-                }
-                else
-                {
-                    info.TooFar = false;
-                    targetTerrainChunkInfos[index] = info;
-                }
-            }
-        }
-
-        [BurstCompile]
-        protected struct ScanJob : IJobParallelFor
-        {
-            public int currentLevel;
-            public double3 centerPosition;
-            public double3 floatingOrigin;
-            public double radius;
-            public Quaternion rotation;
-            public int lodDistance;
-            [ReadOnly] public NativeArray<TerrainChunkInfo> targetTerrainChunkInfos;
-            [ReadOnly] public NativeArray<TerrainChunkInfo> childTerrainChunkInfos;
-            [WriteOnly] public NativeQueue<int>.ParallelWriter destroyChildrenQueue;
-            [WriteOnly] public NativeQueue<int>.ParallelWriter createChildrenQueue;
-            public void Execute(int index)
-            {
-                var info = targetTerrainChunkInfos[index];
-                //If the info has children and all children is agreed to collapse, we collapse.
-                if (!info.IsMesh && childTerrainChunkInfos[info.Child0].TooFar && childTerrainChunkInfos[info.Child1].TooFar && childTerrainChunkInfos[info.Child2].TooFar && childTerrainChunkInfos[info.Child3].TooFar)
-                {
-                    if ((Vector3.Distance((float3)info.ChunkCenterPosition(centerPosition, radius, rotation), (float3)floatingOrigin)) > (lodDistance * radius / Mathf.Pow(2, currentLevel)))
-                    {
-                        destroyChildrenQueue.Enqueue(index);
-                    }
-                }
-                else if (info.IsMesh && !info.TooFar)
-                {
-                    createChildrenQueue.Enqueue(index);
-                }
-            }
-        }
-
-        [BurstCompile]
-        protected struct ResetChunkIndex : IJobParallelFor
-        {
-            public void Execute(int index)
-            {
-                throw new System.NotImplementedException();
-            }
-        }
-        #endregion
-
-        public void OnFixedUpdate(ref JobHandle inputDeps)
-        {
-            if (!Enabled) return;
-            _Counter++;
-            foreach (var planet in PlanetarySystemSimulationSystem.Planets)
-            {
-                int index = planet.Index;
-                if (GenerateMeshQueueList[index].Count == 0 && RemoveMeshQueueList[index] == null)
-                {
-                    for (int i = planet.MaxLodLevel - 1; i > 0; i--)
-                    {
-                        if (CreateQueueList[index].Count == 0 && DestroyQueueList[index].Count == 0)
-                        {
-                            inputDeps = new EvaluateDistance
-                            {
-                                currentLevel = i - 1,
-                                centerPosition = planet.Position,
-                                floatingOrigin = FloatingOrigin,
-                                radius = planet.Radius,
-                                rotation = planet.Rotation,
-                                lodDistance = _LodDistance,
-                                targetTerrainChunkInfos = planet.TerrainChunkInfos[i - 1].AsDeferredJobArray(),
-                            }.Schedule(planet.TerrainChunkInfos[i - 1].Length, 1, inputDeps);
-                            inputDeps.Complete();
-
-                            inputDeps = new EvaluateDistance
-                            {
-                                currentLevel = i,
-                                centerPosition = planet.Position,
-                                floatingOrigin = FloatingOrigin,
-                                rotation = planet.Rotation,
-                                radius = planet.Radius,
-                                lodDistance = _LodDistance,
-                                targetTerrainChunkInfos = planet.TerrainChunkInfos[i].AsDeferredJobArray(),
-                            }.Schedule(planet.TerrainChunkInfos[i].Length, 1, inputDeps);
-                            inputDeps.Complete();
-                            LastChildLevelList[planet.Index] = i;
-                            Scan(ref inputDeps, planet, LastChildLevelList[index]);
-                        }
-                    }
-                }
-            }
-            return;
-        }
-
-        protected override JobHandle OnUpdate(JobHandle inputDeps)
-        {
-            _Timer += Time.deltaTime;
-
-            if (true)
-            {
-                var xz = ControlSystem.InputSystem.PlanetarySystem.MoveCamera.ReadValue<Vector2>();
-                Vector3 forward = CameraModule.MainCameraTransform.forward;
-                Vector3 right = CameraModule.MainCameraTransform.right;
-                var y = ControlSystem.InputSystem.PlanetarySystem.AltCamera.ReadValue<float>();
-                var delta = forward * xz.y + right * xz.x;
-                _FloatingOrigin += new double3(delta.x, delta.y, delta.z) * 1000;
-                _FloatingOrigin.y += y * 1000;
-            }
-            foreach (var planet in PlanetarySystemSimulationSystem.Planets)
-            {
-                var index = planet.Index;
-                if (GenerateMeshQueueList[index].Count != 0)
-                {
-                    var meshInfo = GenerateMeshQueueList[index].Dequeue();
-                    planet.AddMesh(ref inputDeps, ref meshInfo).Enable = true;
-                }
-                else if (RemoveMeshQueueList[planet.Index] != null)
-                {
-                    RemoveMeshQueueList[index] = null;
-                }
-                else if (CreateQueueList[index].Count != 0) ContinueAdd(ref inputDeps, planet);
-                else if (DestroyQueueList[index].Count != 0) ContinueRemove(ref inputDeps, planet);
-                foreach (var i in planet.PlanetMeshes)
-                {
-                    Quaternion.LookRotation((float3)planet.TerrainChunkInfos[i.DetailLevel][i.TerrainChunkInfoIndex].LocalUp);
-                    //If the mesh is within the view frustum and its facing the player we draw it.
-                    var drawPosition = (float3)(planet.Position - FloatingOrigin);
-
-                    if (RemoveMeshQueueList[index] != null)
-                        foreach (var j in RemoveMeshQueueList[index])
-                        {
-                            Graphics.DrawMesh(j.Mesh, drawPosition, planet.Rotation, planet.SurfaceMaterial, Vector3.Distance(Vector3.zero, drawPosition) < 10000 ? 0 : 8);
-                        }
-                    if (i.Enable)
-                    {
-                        Graphics.DrawMesh(i.Mesh, drawPosition, planet.Rotation, planet.SurfaceMaterial, Vector3.Distance(Vector3.zero, drawPosition) < 10000 ? 0 : 8);
-                    }
-
-                }
-            }
-            return inputDeps;
-        }
-
-        private bool CheckFrustum(float3 position)
-        {
-            bool culled = false;
-
-            return culled;
-        }
-
-        private void ContinueAdd(ref JobHandle inputDeps, Planet planet)
-        {
-            var index = planet.Index;
-            int currentLevel = LastChildLevelList[index] - 1;
-            var createQueue = CreateQueueList[index];
-
-            int chunkIndex = createQueue.Dequeue();
-            var infoList = planet.TerrainChunkInfos;
-            var terrainMeshes = new TerrainMesh[1];
-            terrainMeshes[0] = planet.PlanetMeshes[infoList[currentLevel][chunkIndex].MeshIndex];
-            RemoveMeshQueueList[index] = terrainMeshes;
-
-            planet.RemoveMesh(chunkIndex, currentLevel);
-
-            var info = infoList[currentLevel][chunkIndex];
-            info.IsMesh = false;
-
-            double3 localUp = info.LocalUp;
-            info.Child0 = infoList[currentLevel + 1].Length;
-            var newInfo = new TerrainChunkInfo(chunkIndex, currentLevel + 1, new int2(info.ChunkCoordinate.x * 2, info.ChunkCoordinate.y * 2 + 1), true, true, localUp, planet.Resolution);
-            infoList[currentLevel + 1].Add(newInfo);
-            info.Child1 = infoList[currentLevel + 1].Length;
-            newInfo = new TerrainChunkInfo(chunkIndex, currentLevel + 1, new int2(info.ChunkCoordinate.x * 2 + 1, info.ChunkCoordinate.y * 2 + 1), false, true, localUp, planet.Resolution);
-            infoList[currentLevel + 1].Add(newInfo);
-            info.Child2 = infoList[currentLevel + 1].Length;
-            newInfo = new TerrainChunkInfo(chunkIndex, currentLevel + 1, new int2(info.ChunkCoordinate.x * 2, info.ChunkCoordinate.y * 2), true, false, localUp, planet.Resolution);
-            infoList[currentLevel + 1].Add(newInfo);
-            info.Child3 = infoList[currentLevel + 1].Length;
-            newInfo = new TerrainChunkInfo(chunkIndex, currentLevel + 1, new int2(info.ChunkCoordinate.x * 2 + 1, info.ChunkCoordinate.y * 2), false, false, localUp, planet.Resolution);
-            infoList[currentLevel + 1].Add(newInfo);
-
-            GenerateMeshQueueList[planet.Index].Enqueue(new MeshInfo
-            {
-                level = currentLevel + 1,
-                index = info.Child0
-            });
-
-            GenerateMeshQueueList[planet.Index].Enqueue(new MeshInfo
-            {
-                level = currentLevel + 1,
-                index = info.Child1
-            });
-            GenerateMeshQueueList[planet.Index].Enqueue(new MeshInfo
-            {
-                level = currentLevel + 1,
-                index = info.Child2
-            });
-            GenerateMeshQueueList[planet.Index].Enqueue(new MeshInfo
-            {
-                level = currentLevel + 1,
-                index = info.Child3
-            });
-
-            infoList[currentLevel][chunkIndex] = info;
-
-        }
-
-        private void ContinueRemove(ref JobHandle inputDeps, Planet planet)
-        {
-            var index = planet.Index;
-            var lastChildLevelList = LastChildLevelList[index];
-            var childChunkList = planet.TerrainChunkInfos[lastChildLevelList];
-            var parentChunkList = planet.TerrainChunkInfos[lastChildLevelList - 1];
-            var destroyQueue = DestroyQueueList[index];
-
-
-            int parentChunkIndex = destroyQueue.Dequeue();
-            var info = parentChunkList[parentChunkIndex];
-            var terrainMeshes = new TerrainMesh[4];
-            terrainMeshes[0] = planet.PlanetMeshes[childChunkList[info.Child0].MeshIndex];
-            terrainMeshes[1] = planet.PlanetMeshes[childChunkList[info.Child1].MeshIndex];
-            terrainMeshes[2] = planet.PlanetMeshes[childChunkList[info.Child2].MeshIndex];
-            terrainMeshes[3] = planet.PlanetMeshes[childChunkList[info.Child3].MeshIndex];
-            RemoveMeshQueueList[index] = terrainMeshes;
-
-            planet.RemoveMesh(info.Child0, lastChildLevelList);
-            planet.RemoveMesh(info.Child1, lastChildLevelList);
-            planet.RemoveMesh(info.Child2, lastChildLevelList);
-            planet.RemoveMesh(info.Child3, lastChildLevelList);
-
-            planet.RemoveChunkInfo(lastChildLevelList, parentChunkList[parentChunkIndex].Child0);
-            planet.RemoveChunkInfo(lastChildLevelList, parentChunkList[parentChunkIndex].Child1);
-            planet.RemoveChunkInfo(lastChildLevelList, parentChunkList[parentChunkIndex].Child2);
-            planet.RemoveChunkInfo(lastChildLevelList, parentChunkList[parentChunkIndex].Child3);
-
-            for (int j = 0; j < childChunkList.Length; j++)
-            {
-                if (childChunkList[j].IsMesh)
-                {
-                    var terrainMesh = planet.PlanetMeshes[childChunkList[j].MeshIndex];
-                    terrainMesh.TerrainChunkInfoIndex = j;
-                    planet.PlanetMeshes[childChunkList[j].MeshIndex] = terrainMesh;
-                }
-            }
-            GenerateMeshQueueList[planet.Index].Enqueue(new MeshInfo
-            {
-                level = lastChildLevelList - 1,
-                index = parentChunkIndex
-            });
-
-        }
-
-        private bool Scan(ref JobHandle inputDeps, Planet planet, int childLevel)
-        {
-            int index = planet.Index;
-            inputDeps = new ScanJob
-            {
-                currentLevel = childLevel,
-                centerPosition = planet.Position,
-                floatingOrigin = FloatingOrigin,
-                radius = planet.Radius,
-                lodDistance = _LodDistance,
-                targetTerrainChunkInfos = planet.TerrainChunkInfos[childLevel - 1].AsDeferredJobArray(),
-                childTerrainChunkInfos = planet.TerrainChunkInfos[childLevel].AsDeferredJobArray(),
-                destroyChildrenQueue = DestroyQueueList[index].AsParallelWriter(),
-                createChildrenQueue = CreateQueueList[index].AsParallelWriter()
-            }.Schedule(planet.TerrainChunkInfos[childLevel - 1].Length, 1, inputDeps);
-            inputDeps.Complete();
-            return DestroyQueueList[index].Count == 0 && CreateQueueList[index].Count == 0;
-        }
-    }
     public class Planet
     {
         #region Private
@@ -829,5 +330,507 @@ namespace Universe
             return terrainMesh;
         }
     }
+
+    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    public class PlanetarySystemSimulationSystem : JobComponentSystem
+    {
+        #region Private
+        #endregion
+
+        #region Public
+        private static List<Planet> _Planets;
+        public static List<Planet> Planets { get => _Planets; set => _Planets = value; }
+
+        #endregion
+
+        #region Managers
+        protected override void OnCreate()
+        {
+            Enabled = false;
+            _Planets = new List<Planet>();
+        }
+
+        public void Init()
+        {
+            ShutDown();
+            Enabled = true;
+        }
+
+        public void ShutDown()
+        {
+            Enabled = false;
+        }
+
+        protected override void OnDestroy()
+        {
+            ShutDown();
+        }
+
+        #endregion
+
+        #region Methods
+        public static int LoadPlanet(PlanetInfo planetInfo)
+        {
+            PlanetarySystemRenderSystem.LastChildLevelList.Add(0);
+            PlanetarySystemRenderSystem.CreateQueueList.Add(new NativeQueue<int>(Allocator.Persistent));
+            PlanetarySystemRenderSystem.DestroyQueueList.Add(new NativeQueue<int>(Allocator.Persistent));
+            PlanetarySystemRenderSystem.GenerateMeshQueueList.Add(new NativeQueue<MeshInfo>(Allocator.Persistent));
+            PlanetarySystemRenderSystem.RemoveMeshQueueList.Add(null);
+
+            var planet = new Planet(planetInfo, maxLodLevel: 15, resolution: 64, new Material(Shader.Find("Standard")), Quaternion.identity, PlanetarySystemRenderSystem.GenerateMeshQueueList[_Planets.Count], _Planets.Count);
+
+            _Planets.Add(planet);
+           
+            return _Planets.Count - 1;
+        }
+
+        public static bool UnLoadPlanet(int index)
+        {
+            Debug.Assert(index >= 0 && index < _Planets.Count);
+            _Planets[index].ShutDown();
+            if (PlanetarySystemRenderSystem.GenerateMeshQueueList[index].IsCreated) PlanetarySystemRenderSystem.GenerateMeshQueueList[index].Dispose();
+            PlanetarySystemRenderSystem.GenerateMeshQueueList.RemoveAtSwapBack(index);
+            PlanetarySystemRenderSystem.RemoveMeshQueueList.RemoveAtSwapBack(index);
+            _Planets.RemoveAtSwapBack(index);
+            PlanetarySystemRenderSystem.LastChildLevelList.RemoveAtSwapBack(index);
+            if (PlanetarySystemRenderSystem.CreateQueueList[index].IsCreated) PlanetarySystemRenderSystem.CreateQueueList[index].Dispose();
+            PlanetarySystemRenderSystem.CreateQueueList.RemoveAtSwapBack(index);
+            if (PlanetarySystemRenderSystem.DestroyQueueList[index].IsCreated) PlanetarySystemRenderSystem.DestroyQueueList[index].Dispose();
+            PlanetarySystemRenderSystem.DestroyQueueList.RemoveAtSwapBack(index);
+            if (index < _Planets.Count) _Planets[index].Index = index;
+            return true;
+        }
+
+        public static void Clear()
+        {
+            if (_Planets != null && _Planets.Count != 0)
+            {
+                while (_Planets.Count != 0)
+                {
+                    UnLoadPlanet(0);
+                }
+            }
+        }
+        #endregion
+
+        #region Jobs
+        #endregion
+
+        protected override JobHandle OnUpdate(JobHandle inputDeps)
+        {
+            return inputDeps;
+        }
+    }
+
+
+    [UpdateInGroup(typeof(PresentationSystemGroup))]
+    public class PlanetarySystemRenderSystem : JobComponentSystem
+    {
+        #region Private
+        
+        private Light _SolarLight;
+        #endregion
+
+        #region Public
+        private static double3 _FloatingOrigin;
+        private static int _LodDistance;
+        private static int _Counter;
+        private static float _Timer;
+        private static List<NativeQueue<int>> _DestroyQueueList;
+        private static List<NativeQueue<int>> _CreateQueueList;
+        private static List<NativeQueue<MeshInfo>> _GenerateMeshQueueList;
+        private static List<TerrainMesh[]> _RemoveMeshQueueList;
+        private static List<int> _LastChildLevelList;
+        public static int LodDistance { get => _LodDistance; set => _LodDistance = value; }
+        public static double3 FloatingOrigin { get => _FloatingOrigin; set => _FloatingOrigin = value; }
+        public static List<NativeQueue<int>> DestroyQueueList { get => _DestroyQueueList; set => _DestroyQueueList = value; }
+        public static List<NativeQueue<int>> CreateQueueList { get => _CreateQueueList; set => _CreateQueueList = value; }
+        public static List<NativeQueue<MeshInfo>> GenerateMeshQueueList { get => _GenerateMeshQueueList; set => _GenerateMeshQueueList = value; }
+        public static List<TerrainMesh[]> RemoveMeshQueueList { get => _RemoveMeshQueueList; set => _RemoveMeshQueueList = value; }
+        public static List<int> LastChildLevelList { get => _LastChildLevelList; set => _LastChildLevelList = value; }
+        #endregion
+
+        #region Managers
+        protected override void OnCreate()
+        {
+            Enabled = false;
+            _LodDistance = 8;
+            FloatingOrigin = double3.zero;
+            GenerateMeshQueueList = new List<NativeQueue<MeshInfo>>();
+            RemoveMeshQueueList = new List<TerrainMesh[]>();
+            DestroyQueueList = new List<NativeQueue<int>>();
+            CreateQueueList = new List<NativeQueue<int>>();
+            LastChildLevelList = new List<int>();
+        }
+
+        public void Init()
+        {
+            ShutDown();
+            Enabled = true;
+            Clear();
+        }
+
+        public void ShutDown()
+        {
+            Enabled = false;
+        }
+        protected override void OnDestroy()
+        {
+            ShutDown();
+            if (GenerateMeshQueueList != null)
+            {
+                foreach (var i in GenerateMeshQueueList)
+                {
+                    if (i.IsCreated) i.Dispose();
+                }
+                GenerateMeshQueueList = null;
+            }
+
+            if (DestroyQueueList != null)
+            {
+                foreach (var i in DestroyQueueList)
+                {
+                    if (i.IsCreated) i.Dispose();
+                }
+                DestroyQueueList = null;
+            }
+
+            if (CreateQueueList != null)
+            {
+                foreach (var i in CreateQueueList)
+                {
+                    if (i.IsCreated) i.Dispose();
+                }
+                CreateQueueList = null;
+            }
+            RemoveMeshQueueList = null;
+            LastChildLevelList = null;
+        }
+        #endregion
+
+        #region Methods
+        public void Clear()
+        {
+            if (GenerateMeshQueueList != null)
+            {
+                foreach (var i in GenerateMeshQueueList)
+                {
+                    if (i.IsCreated) i.Dispose();
+                }
+            }
+
+            if (DestroyQueueList != null)
+            {
+                foreach (var i in DestroyQueueList)
+                {
+                    if (i.IsCreated) i.Dispose();
+                }
+            }
+
+            if (CreateQueueList != null)
+            {
+                foreach (var i in CreateQueueList)
+                {
+                    if (i.IsCreated) i.Dispose();
+                }
+            }
+            RemoveMeshQueueList.Clear();
+            LastChildLevelList.Clear();
+        }
+        #endregion
+
+        #region Jobs
+
+        [BurstCompile]
+        protected struct EvaluateDistance : IJobParallelFor
+        {
+            public int currentLevel;
+            public double3 centerPosition;
+            public double3 floatingOrigin;
+            public double radius;
+            public Quaternion rotation;
+            public int lodDistance;
+            [NativeDisableParallelForRestriction]
+            public NativeArray<TerrainChunkInfo> targetTerrainChunkInfos;
+            public void Execute(int index)
+            {
+                var info = targetTerrainChunkInfos[index];
+                if (info.IsMesh && Vector3.Distance((float3)info.ChunkCenterPosition(centerPosition, radius, rotation), (float3)floatingOrigin) > (lodDistance * radius / Mathf.Pow(2, currentLevel + 1)))
+                {
+                    info.TooFar = true;
+                    targetTerrainChunkInfos[index] = info;
+                }
+                else
+                {
+                    info.TooFar = false;
+                    targetTerrainChunkInfos[index] = info;
+                }
+            }
+        }
+
+        [BurstCompile]
+        protected struct ScanJob : IJobParallelFor
+        {
+            public int currentLevel;
+            public double3 centerPosition;
+            public double3 floatingOrigin;
+            public double radius;
+            public Quaternion rotation;
+            public int lodDistance;
+            [ReadOnly] public NativeArray<TerrainChunkInfo> targetTerrainChunkInfos;
+            [ReadOnly] public NativeArray<TerrainChunkInfo> childTerrainChunkInfos;
+            [WriteOnly] public NativeQueue<int>.ParallelWriter destroyChildrenQueue;
+            [WriteOnly] public NativeQueue<int>.ParallelWriter createChildrenQueue;
+            public void Execute(int index)
+            {
+                var info = targetTerrainChunkInfos[index];
+                //If the info has children and all children is agreed to collapse, we collapse.
+                if (!info.IsMesh && childTerrainChunkInfos[info.Child0].TooFar && childTerrainChunkInfos[info.Child1].TooFar && childTerrainChunkInfos[info.Child2].TooFar && childTerrainChunkInfos[info.Child3].TooFar)
+                {
+                    if ((Vector3.Distance((float3)info.ChunkCenterPosition(centerPosition, radius, rotation), (float3)floatingOrigin)) > (lodDistance * radius / Mathf.Pow(2, currentLevel)))
+                    {
+                        destroyChildrenQueue.Enqueue(index);
+                    }
+                }
+                else if (info.IsMesh && !info.TooFar)
+                {
+                    createChildrenQueue.Enqueue(index);
+                }
+            }
+        }
+
+        [BurstCompile]
+        protected struct ResetChunkIndex : IJobParallelFor
+        {
+            public void Execute(int index)
+            {
+                throw new System.NotImplementedException();
+            }
+        }
+        #endregion
+
+        public JobHandle OnFixedUpdate(JobHandle inputDeps)
+        {
+            if (!Enabled) return inputDeps;
+            _Counter++;
+            foreach (var planet in PlanetarySystemSimulationSystem.Planets)
+            {
+                int index = planet.Index;
+                if (GenerateMeshQueueList[index].Count == 0 && RemoveMeshQueueList[index] == null)
+                {
+                    for (int i = planet.MaxLodLevel - 1; i > 0; i--)
+                    {
+                        if (CreateQueueList[index].Count == 0 && DestroyQueueList[index].Count == 0)
+                        {
+                            inputDeps = new EvaluateDistance
+                            {
+                                currentLevel = i - 1,
+                                centerPosition = planet.Position,
+                                floatingOrigin = FloatingOrigin,
+                                radius = planet.Radius,
+                                rotation = planet.Rotation,
+                                lodDistance = _LodDistance,
+                                targetTerrainChunkInfos = planet.TerrainChunkInfos[i - 1].AsDeferredJobArray(),
+                            }.Schedule(planet.TerrainChunkInfos[i - 1].Length, 1, inputDeps);
+                            inputDeps.Complete();
+
+                            inputDeps = new EvaluateDistance
+                            {
+                                currentLevel = i,
+                                centerPosition = planet.Position,
+                                floatingOrigin = FloatingOrigin,
+                                rotation = planet.Rotation,
+                                radius = planet.Radius,
+                                lodDistance = _LodDistance,
+                                targetTerrainChunkInfos = planet.TerrainChunkInfos[i].AsDeferredJobArray(),
+                            }.Schedule(planet.TerrainChunkInfos[i].Length, 1, inputDeps);
+                            inputDeps.Complete();
+                            LastChildLevelList[planet.Index] = i;
+                            Scan(ref inputDeps, planet, LastChildLevelList[index]);
+                        }
+                    }
+                }
+            }
+            return inputDeps;
+        }
+
+        protected override JobHandle OnUpdate(JobHandle inputDeps)
+        {
+            _Timer += Time.deltaTime;
+
+            if (true)
+            {
+                var xz = ControlSystem.InputSystem.PlanetarySystem.MoveCamera.ReadValue<Vector2>();
+                Vector3 forward = CameraModule.MainCameraTransform.forward;
+                Vector3 right = CameraModule.MainCameraTransform.right;
+                var y = ControlSystem.InputSystem.PlanetarySystem.AltCamera.ReadValue<float>();
+                var delta = forward * xz.y + right * xz.x;
+                _FloatingOrigin += new double3(delta.x, delta.y, delta.z) * 1000;
+                _FloatingOrigin.y += y * 1000;
+            }
+            foreach (var planet in PlanetarySystemSimulationSystem.Planets)
+            {
+                var index = planet.Index;
+                if (GenerateMeshQueueList[index].Count != 0)
+                {
+                    var meshInfo = GenerateMeshQueueList[index].Dequeue();
+                    planet.AddMesh(ref inputDeps, ref meshInfo).Enable = true;
+                }
+                else if (RemoveMeshQueueList[planet.Index] != null)
+                {
+                    RemoveMeshQueueList[index] = null;
+                }
+                else if (CreateQueueList[index].Count != 0) ContinueAdd(ref inputDeps, planet);
+                else if (DestroyQueueList[index].Count != 0) ContinueRemove(ref inputDeps, planet);
+                foreach (var i in planet.PlanetMeshes)
+                {
+                    Quaternion.LookRotation((float3)planet.TerrainChunkInfos[i.DetailLevel][i.TerrainChunkInfoIndex].LocalUp);
+                    //If the mesh is within the view frustum and its facing the player we draw it.
+                    var drawPosition = (float3)(planet.Position - FloatingOrigin);
+
+                    if (RemoveMeshQueueList[index] != null)
+                        foreach (var j in RemoveMeshQueueList[index])
+                        {
+                            Graphics.DrawMesh(j.Mesh, drawPosition, planet.Rotation, planet.SurfaceMaterial, Vector3.Distance(Vector3.zero, drawPosition) < 10000 ? 0 : 0);
+                        }
+                    if (i.Enable)
+                    {
+                        Graphics.DrawMesh(i.Mesh, drawPosition, planet.Rotation, planet.SurfaceMaterial, Vector3.Distance(Vector3.zero, drawPosition) < 10000 ? 0 : 0);
+                    }
+
+                }
+            }
+            return inputDeps;
+        }
+
+        private bool CheckFrustum(float3 position)
+        {
+            bool culled = false;
+
+            return culled;
+        }
+
+        private void ContinueAdd(ref JobHandle inputDeps, Planet planet)
+        {
+            var index = planet.Index;
+            int currentLevel = LastChildLevelList[index] - 1;
+            var createQueue = CreateQueueList[index];
+
+            int chunkIndex = createQueue.Dequeue();
+            var infoList = planet.TerrainChunkInfos;
+            var terrainMeshes = new TerrainMesh[1];
+            terrainMeshes[0] = planet.PlanetMeshes[infoList[currentLevel][chunkIndex].MeshIndex];
+            RemoveMeshQueueList[index] = terrainMeshes;
+
+            planet.RemoveMesh(chunkIndex, currentLevel);
+
+            var info = infoList[currentLevel][chunkIndex];
+            info.IsMesh = false;
+
+            double3 localUp = info.LocalUp;
+            info.Child0 = infoList[currentLevel + 1].Length;
+            var newInfo = new TerrainChunkInfo(chunkIndex, currentLevel + 1, new int2(info.ChunkCoordinate.x * 2, info.ChunkCoordinate.y * 2 + 1), true, true, localUp, planet.Resolution);
+            infoList[currentLevel + 1].Add(newInfo);
+            info.Child1 = infoList[currentLevel + 1].Length;
+            newInfo = new TerrainChunkInfo(chunkIndex, currentLevel + 1, new int2(info.ChunkCoordinate.x * 2 + 1, info.ChunkCoordinate.y * 2 + 1), false, true, localUp, planet.Resolution);
+            infoList[currentLevel + 1].Add(newInfo);
+            info.Child2 = infoList[currentLevel + 1].Length;
+            newInfo = new TerrainChunkInfo(chunkIndex, currentLevel + 1, new int2(info.ChunkCoordinate.x * 2, info.ChunkCoordinate.y * 2), true, false, localUp, planet.Resolution);
+            infoList[currentLevel + 1].Add(newInfo);
+            info.Child3 = infoList[currentLevel + 1].Length;
+            newInfo = new TerrainChunkInfo(chunkIndex, currentLevel + 1, new int2(info.ChunkCoordinate.x * 2 + 1, info.ChunkCoordinate.y * 2), false, false, localUp, planet.Resolution);
+            infoList[currentLevel + 1].Add(newInfo);
+
+            GenerateMeshQueueList[planet.Index].Enqueue(new MeshInfo
+            {
+                level = currentLevel + 1,
+                index = info.Child0
+            });
+
+            GenerateMeshQueueList[planet.Index].Enqueue(new MeshInfo
+            {
+                level = currentLevel + 1,
+                index = info.Child1
+            });
+            GenerateMeshQueueList[planet.Index].Enqueue(new MeshInfo
+            {
+                level = currentLevel + 1,
+                index = info.Child2
+            });
+            GenerateMeshQueueList[planet.Index].Enqueue(new MeshInfo
+            {
+                level = currentLevel + 1,
+                index = info.Child3
+            });
+
+            infoList[currentLevel][chunkIndex] = info;
+
+        }
+
+        private void ContinueRemove(ref JobHandle inputDeps, Planet planet)
+        {
+            var index = planet.Index;
+            var lastChildLevelList = LastChildLevelList[index];
+            var childChunkList = planet.TerrainChunkInfos[lastChildLevelList];
+            var parentChunkList = planet.TerrainChunkInfos[lastChildLevelList - 1];
+            var destroyQueue = DestroyQueueList[index];
+
+
+            int parentChunkIndex = destroyQueue.Dequeue();
+            var info = parentChunkList[parentChunkIndex];
+            var terrainMeshes = new TerrainMesh[4];
+            terrainMeshes[0] = planet.PlanetMeshes[childChunkList[info.Child0].MeshIndex];
+            terrainMeshes[1] = planet.PlanetMeshes[childChunkList[info.Child1].MeshIndex];
+            terrainMeshes[2] = planet.PlanetMeshes[childChunkList[info.Child2].MeshIndex];
+            terrainMeshes[3] = planet.PlanetMeshes[childChunkList[info.Child3].MeshIndex];
+            RemoveMeshQueueList[index] = terrainMeshes;
+
+            planet.RemoveMesh(info.Child0, lastChildLevelList);
+            planet.RemoveMesh(info.Child1, lastChildLevelList);
+            planet.RemoveMesh(info.Child2, lastChildLevelList);
+            planet.RemoveMesh(info.Child3, lastChildLevelList);
+
+            planet.RemoveChunkInfo(lastChildLevelList, parentChunkList[parentChunkIndex].Child0);
+            planet.RemoveChunkInfo(lastChildLevelList, parentChunkList[parentChunkIndex].Child1);
+            planet.RemoveChunkInfo(lastChildLevelList, parentChunkList[parentChunkIndex].Child2);
+            planet.RemoveChunkInfo(lastChildLevelList, parentChunkList[parentChunkIndex].Child3);
+
+            for (int j = 0; j < childChunkList.Length; j++)
+            {
+                if (childChunkList[j].IsMesh)
+                {
+                    var terrainMesh = planet.PlanetMeshes[childChunkList[j].MeshIndex];
+                    terrainMesh.TerrainChunkInfoIndex = j;
+                    planet.PlanetMeshes[childChunkList[j].MeshIndex] = terrainMesh;
+                }
+            }
+            GenerateMeshQueueList[planet.Index].Enqueue(new MeshInfo
+            {
+                level = lastChildLevelList - 1,
+                index = parentChunkIndex
+            });
+
+        }
+
+        private bool Scan(ref JobHandle inputDeps, Planet planet, int childLevel)
+        {
+            int index = planet.Index;
+            inputDeps = new ScanJob
+            {
+                currentLevel = childLevel,
+                centerPosition = planet.Position,
+                floatingOrigin = FloatingOrigin,
+                radius = planet.Radius,
+                lodDistance = _LodDistance,
+                targetTerrainChunkInfos = planet.TerrainChunkInfos[childLevel - 1].AsDeferredJobArray(),
+                childTerrainChunkInfos = planet.TerrainChunkInfos[childLevel].AsDeferredJobArray(),
+                destroyChildrenQueue = DestroyQueueList[index].AsParallelWriter(),
+                createChildrenQueue = CreateQueueList[index].AsParallelWriter()
+            }.Schedule(planet.TerrainChunkInfos[childLevel - 1].Length, 1, inputDeps);
+            inputDeps.Complete();
+            return DestroyQueueList[index].Count == 0 && CreateQueueList[index].Count == 0;
+        }
+    }
+    
 }
 
