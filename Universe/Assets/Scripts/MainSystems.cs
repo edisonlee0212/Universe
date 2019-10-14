@@ -294,8 +294,7 @@ namespace Universe
         public static void OnPlanetarySystemCancel(InputAction.CallbackContext ctx)
         {
             if (_IsSwitching) return;
-            PlanetarySystemSimulationSystem.Clear();
-            StarTransformSystem.Enabled = true;
+
             ControlSystem.Interrupt();
             //TODO: Switch to star cluster.
             _SwitchingModeInfo.TargetControlMode = ControlMode.StarCluster;
@@ -306,7 +305,7 @@ namespace Universe
             _SwitchingModeInfo.FromScaleFactor = StarTransformSystem.ScaleFactor;
             _SwitchingModeInfo.ToScaleFactor = 1;
             _SwitchingModeInfo.FromTimeSpeed = 0;
-            _SwitchingModeInfo.ToTimeSpeed = 1;
+            _SwitchingModeInfo.ToTimeSpeed = .1f;
             _SwitchingModeInfo.TargetMaterial = m_RenderMeshResources.Materials[0];
             _SwitchingModeInfo.TargetMesh = m_RenderMeshResources.Meshes[0];
             _CurrentStarRenderContent.MeshMaterial.Mesh = _SwitchingModeInfo.TargetMesh;
@@ -370,18 +369,51 @@ namespace Universe
             }
             if (_IsSwitching)
             {
-                StarTransformSystem.DistanceFactor = Mathf.Lerp(_SwitchingModeInfo.FromDistanceFactor, _SwitchingModeInfo.ToDistanceFactor, (_SwitchingModeInfo.Time / _SwitchingModeInfo.TotalTime));
-                StarTransformSystem.TimeSpeed = Mathf.Lerp(_SwitchingModeInfo.FromTimeSpeed, _SwitchingModeInfo.ToTimeSpeed, (_SwitchingModeInfo.Time / _SwitchingModeInfo.TotalTime));
-                StarTransformSystem.ScaleFactor = Mathf.Lerp(_SwitchingModeInfo.FromScaleFactor, _SwitchingModeInfo.ToScaleFactor, (_SwitchingModeInfo.Time / _SwitchingModeInfo.TotalTime));
+                switch (_SwitchingModeInfo.TargetControlMode)
+                {
+                    case ControlMode.PlanetarySystem:
+                        StarTransformSystem.DistanceFactor = Mathf.Lerp(_SwitchingModeInfo.FromDistanceFactor, _SwitchingModeInfo.ToDistanceFactor, (_SwitchingModeInfo.Time / _SwitchingModeInfo.TotalTime));
+                        StarTransformSystem.TimeSpeed = Mathf.Lerp(_SwitchingModeInfo.FromTimeSpeed, _SwitchingModeInfo.ToTimeSpeed, (_SwitchingModeInfo.Time / _SwitchingModeInfo.TotalTime));
+                        StarTransformSystem.ScaleFactor = Mathf.Lerp(_SwitchingModeInfo.FromScaleFactor, _SwitchingModeInfo.ToScaleFactor, (_SwitchingModeInfo.Time / _SwitchingModeInfo.TotalTime));
+                        StarTransformSystem.OnTransition(this, inputDeps);
+                        break;
+                    case ControlMode.StarCluster:
+                        StarTransformSystem.DistanceFactor = Mathf.Lerp(_SwitchingModeInfo.FromDistanceFactor, _SwitchingModeInfo.ToDistanceFactor, (_SwitchingModeInfo.Time / _SwitchingModeInfo.TotalTime));
+                        StarTransformSystem.TimeSpeed = Mathf.Lerp(_SwitchingModeInfo.FromTimeSpeed, _SwitchingModeInfo.ToTimeSpeed, (_SwitchingModeInfo.Time / _SwitchingModeInfo.TotalTime));
+                        StarTransformSystem.ScaleFactor = Mathf.Lerp(_SwitchingModeInfo.FromScaleFactor, _SwitchingModeInfo.ToScaleFactor, (_SwitchingModeInfo.Time / _SwitchingModeInfo.TotalTime));
+                        StarTransformSystem.OnTransition(this, inputDeps);
+                        break;
+                    default:
+                        break;
+                }                
                 _SwitchingModeInfo.Time += Time.deltaTime;
                 if (_SwitchingModeInfo.Time >= _SwitchingModeInfo.TotalTime)
                 {
                     _IsSwitching = false;
-                    StarTransformSystem.DistanceFactor = _SwitchingModeInfo.ToDistanceFactor;
                     ControlSystem.ControlMode = _SwitchingModeInfo.TargetControlMode;
-                    _CurrentStarRenderContent.MeshMaterial.Mesh = _SwitchingModeInfo.TargetMesh;
-                    _CurrentStarRenderContent.MeshMaterial.Material = _SwitchingModeInfo.TargetMaterial;
-                    SelectionSystem.OnSelectionStatusReset();
+                    switch (_SwitchingModeInfo.TargetControlMode)
+                    {
+                        case ControlMode.PlanetarySystem:
+                            StarTransformSystem.DistanceFactor = _SwitchingModeInfo.ToDistanceFactor;
+                            _CurrentStarRenderContent.MeshMaterial.Mesh = _SwitchingModeInfo.TargetMesh;
+                            _CurrentStarRenderContent.MeshMaterial.Material = _SwitchingModeInfo.TargetMaterial;
+                            SelectionSystem.OnSelectionStatusReset();
+
+                            PlanetarySystemSimulationSystem.LoadPlanetarySystem();
+                            StarTransformSystem.Enabled = false;
+                            break;
+                        case ControlMode.StarCluster:
+                            StarTransformSystem.DistanceFactor = _SwitchingModeInfo.ToDistanceFactor;
+                            _CurrentStarRenderContent.MeshMaterial.Mesh = _SwitchingModeInfo.TargetMesh;
+                            _CurrentStarRenderContent.MeshMaterial.Material = _SwitchingModeInfo.TargetMaterial;
+                            SelectionSystem.OnSelectionStatusReset();
+
+                            PlanetarySystemSimulationSystem.Clear();
+                            StarTransformSystem.Enabled = true;
+                            break;
+                        default: break;
+                    }
+                    
                 }
             }
             return inputDeps;

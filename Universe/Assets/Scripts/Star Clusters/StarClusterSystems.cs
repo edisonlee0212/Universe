@@ -76,6 +76,19 @@ namespace Universe
         {
             m_FollowingEntity = Entity.Null;
         }
+
+        public static JobHandle OnTransition(ComponentSystemBase system, JobHandle inputDeps)
+        {
+            inputDeps = new CalculateStarTranslationAndColorPlanetarySystemMode
+            {
+                followingEntity = m_FollowingEntity,
+                floatingOrigin = _FloatingOrigin,
+            }.Schedule(system, inputDeps);
+
+            inputDeps.Complete();
+            return inputDeps;
+        }
+
         #endregion
 
         #region Jobs
@@ -195,64 +208,14 @@ namespace Universe
                 inputDeps.Complete();
                 if (m_FollowingEntity != Entity.Null && !_StartFollow) _FloatingOrigin = EntityManager.GetComponentData<Position>(m_FollowingEntity).Value;
 
-                if (ControlSystem.ControlMode == ControlMode.PlanetarySystem)
+
+                inputDeps = new CalculateStarTranslationAndColorStarClusterMode
                 {
-                    inputDeps = new CalculateStarTranslationAndColorPlanetarySystemMode
-                    {
-                        followingEntity = m_FollowingEntity,
-                        floatingOrigin = _FloatingOrigin,
-                    }.Schedule(this, inputDeps);
+                    distanceFactor = _DistanceFactor,
+                    floatingOrigin = _FloatingOrigin,
+                    followingEntity = m_FollowingEntity
+                }.Schedule(this, inputDeps);
 
-                    PlanetarySystemSimulationSystem.LoadPlanet(new PlanetInfo
-                    {
-                        Position = new double3(0, 0, 800000),
-                        Radius = 600000,
-                        PlanetType = PlanetType.Solar
-                    }
-                    );
-
-                    PlanetarySystemSimulationSystem.LoadPlanet(new PlanetInfo
-                    {
-                        Position = new double3(0, 0, 100000),
-                        Radius = 60000,
-                        PlanetType = PlanetType.Planet
-                    }
-                    );
-
-                    PlanetarySystemSimulationSystem.LoadPlanet(new PlanetInfo
-                    {
-                        Position = new double3(0, 0, 900000),
-                        Radius = 60000,
-                        PlanetType = PlanetType.Planet
-                    }
-                    );
-
-                    PlanetarySystemSimulationSystem.LoadPlanet(new PlanetInfo
-                    {
-                        Position = new double3(900000, 0, 800000),
-                        Radius = 60000,
-                        PlanetType = PlanetType.Planet
-                    }
-                    );
-
-                    PlanetarySystemSimulationSystem.LoadPlanet(new PlanetInfo
-                    {
-                        Position = new double3(-900000, 0, 800000),
-                        Radius = 60000,
-                        PlanetType = PlanetType.Planet
-                    }
-                    );
-                    Enabled = false;
-                }
-                else
-                {
-                    inputDeps = new CalculateStarTranslationAndColorStarClusterMode
-                    {
-                        distanceFactor = _DistanceFactor,
-                        floatingOrigin = _FloatingOrigin,
-                        followingEntity = m_FollowingEntity
-                    }.Schedule(this, inputDeps);
-                }
             }
             #region Floating Origin
             if (m_FollowingEntity == Entity.Null)
